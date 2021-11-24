@@ -3,6 +3,6 @@ WORKDIR /go/src/admiral
 COPY . .
 RUN make build
 
-FROM debian:stretch-slim as runtime
+FROM ubuntu:22.04 as runtime
 COPY --from=build /go/src/admiral/out/ /bin/
 ENTRYPOINT ["/bin/admiral"]
