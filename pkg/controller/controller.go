@@ -84,11 +84,11 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	nodeNotReadyInformer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				options.FieldSelector = "involvedObject.kind=Node,type=Warning,reason=NodeNotReady"
+				options.FieldSelector = "involvedObject.kind=Node,type=Normal,reason=NodeNotReady"
 				return kubeClient.CoreV1().Events(conf.Namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				options.FieldSelector = "involvedObject.kind=Node,type=Warning,reason=NodeNotReady"
+				options.FieldSelector = "involvedObject.kind=Node,type=Normal,reason=NodeNotReady"
 				return kubeClient.CoreV1().Events(conf.Namespace).Watch(context.Background(), options)
 			},
 		},
@@ -107,11 +107,11 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	backoffInformer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				options.FieldSelector = "involvedObject.kind=Pod,type=Normal,reason=BackOff"
+				options.FieldSelector = "involvedObject.kind=Pod,type=Warning,reason=BackOff"
 				return kubeClient.CoreV1().Events(conf.Namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				options.FieldSelector = "involvedObject.kind=Pod,type=Normal,reason=BackOff"
+				options.FieldSelector = "involvedObject.kind=Pod,type=Warning,reason=BackOff"
 				return kubeClient.CoreV1().Events(conf.Namespace).Watch(context.Background(), options)
 			},
 		},
@@ -125,29 +125,6 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	defer close(stopBackoffCh)
 
 	go backoffController.Run(stopBackoffCh)
-
-	// Kill informer
-	killInformer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				options.FieldSelector = "involvedObject.kind=Pod,type=Normal,reason=Killing"
-				return kubeClient.CoreV1().Events(conf.Namespace).List(context.Background(), options)
-			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				options.FieldSelector = "involvedObject.kind=Pod,type=Normal,reason=Killing"
-				return kubeClient.CoreV1().Events(conf.Namespace).Watch(context.Background(), options)
-			},
-		},
-		&api_v1.Event{},
-		0,
-		cache.Indexers{},
-	)
-
-	killController := newResourceController(kubeClient, eventHandler, killInformer, "Killing")
-	stopKillCh := make(chan struct{})
-	defer close(stopKillCh)
-
-	go killController.Run(stopKillCh)
 
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
