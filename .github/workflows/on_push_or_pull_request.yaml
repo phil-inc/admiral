@@ -11,6 +11,13 @@ on:
       - release
 
 jobs:
+  lint-repo:
+    name: Lint & format code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: go fmt
+        run: "! make fmt 2>&1 | read"
   build-image:
     name: Run `go build`
     runs-on: ubuntu-latest
