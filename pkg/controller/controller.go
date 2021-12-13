@@ -275,6 +275,19 @@ func (c *Controller) processItem(newEvent Event) error {
 	default:
 		return nil
 	}
+
+	kbEvent.NodeDescription = c.podsOnNodeToString(objectMetadata)
 	c.eventHandler.Handle(kbEvent)
 	return nil
+}
+
+func (c *Controller) podsOnNodeToString(m meta_v1.ObjectMeta) (s string) {
+	pods, err := c.clientset.CoreV1().Pods(m.Namespace).List(context.Background(), meta_v1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", m.Name)})
+	if err != nil {
+		logrus.Fatalf("Failed matching pods to a node: %s", err)
+	}
+	for _, pod := range pods.Items {
+		s = fmt.Sprintf("%s \n %s", s, pod.Name)
+	}
+	return
 }
