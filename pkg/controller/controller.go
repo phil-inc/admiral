@@ -276,7 +276,7 @@ func (c *Controller) processItem(newEvent Event) error {
 		return nil
 	}
 
-	kbEvent.NodeDescription = c.podsOnNodeToString(objectMetadata)
+	kbEvent.NodeDescription = fmt.Sprintf("%s \n %s", objectMetadata.ClusterName, c.podsOnNodeToString(objectMetadata))
 	c.eventHandler.Handle(kbEvent)
 	return nil
 }
