@@ -279,6 +279,48 @@ func (c *Controller) processItem(newEvent Event) error {
 		return nil
 	}
 
+	if kbEvent.Kind == "NodeNotReady" {
+		kbEvent.Extra = c.getPodsOnNode(objectMetadata)
+		logrus.Printf("Processed Extra: %s", kbEvent.Extra)
+	}
+
 	c.eventHandler.Handle(kbEvent)
 	return nil
+}
+
+func (c *Controller) getPodsOnNode(m meta_v1.ObjectMeta) (s string) {
+	trimmedNodeName := trimNodeName(m.Name)
+	logrus.Printf("Trimmed Node Name: %s", trimmedNodeName)
+	pods, err := c.clientset.CoreV1().Pods(m.Namespace).List(context.Background(), meta_v1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", trimmedNodeName)})
+	logrus.Printf("Pods from node: %s", pods.String())
+	if err != nil {
+		logrus.Fatalf("Failed matching pods to a node: %s", err)
+	}
+
+	for _, pod := range pods.Items {
+		s = fmt.Sprintf("%s \n %s", s, pod.Name)
+	}
+	return
+}
+
+// Nodes queried from the API server have an extra ".000~"
+// appended to the end, but the API server does not recognize
+// that extra substring when performing Get or Describe ops.
+func trimNodeName(s string) (k string) {
+	// Node names are formatted like:
+	//    <node-name>.ec2.internal.<resource-id>
+	// We want to strip away '.<resource-id>
+
+	subs := strings.SplitAfter(s, ".")
+
+	for _, v := range subs {
+		if strings.Contains(v, ".") {
+			k = fmt.Sprintf("%s%s", k, v)
+		}
+	}
+
+	// Remove the trailing .
+	k = strings.TrimRight(k, ".")
+
+	return
 }

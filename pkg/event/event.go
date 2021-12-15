@@ -11,6 +11,7 @@ type Event struct {
 	Status    string
 	Name      string
 	Cluster   string
+	Extra     string
 }
 
 // Message returns event message
@@ -22,5 +23,10 @@ func (e *Event) Message() string {
 		e.Name,
 		e.Kind,
 	)
+
+	if e.Extra != "" {
+		msg = fmt.Sprintf("%s \n %s", msg, e.Extra)
+	}
+
 	return msg
 }
