@@ -38,6 +38,7 @@ type Config struct {
 	Handler   Handler  `json:"handler"`
 	Resource  Resource `json:"resource"`
 	Namespace string   `json:"namespace,omitempty"`
+	Cluster   string   `json:"cluster,omitempty"`
 }
 
 type Webhook struct {

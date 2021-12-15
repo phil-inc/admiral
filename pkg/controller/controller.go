@@ -45,6 +45,7 @@ type Controller struct {
 	queue        workqueue.RateLimitingInterface
 	informer     cache.SharedIndexInformer
 	eventHandler handlers.Handler
+	config       *config.Config
 }
 
 // Start creates watchers and runs their controllers
@@ -74,7 +75,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 		cache.Indexers{},
 	)
 
-	unhealthyPodController := newResourceController(kubeClient, eventHandler, unhealthyPodInformer, "Unhealthy")
+	unhealthyPodController := newResourceController(kubeClient, eventHandler, unhealthyPodInformer, "Unhealthy", conf)
 	stopUnhealthyPodCh := make(chan struct{})
 	defer close(stopUnhealthyPodCh)
 
@@ -97,7 +98,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 		cache.Indexers{},
 	)
 
-	nodeNotReadyController := newResourceController(kubeClient, eventHandler, nodeNotReadyInformer, "NodeNotReady")
+	nodeNotReadyController := newResourceController(kubeClient, eventHandler, nodeNotReadyInformer, "NodeNotReady", conf)
 	stopNodeNotReadyCh := make(chan struct{})
 	defer close(stopNodeNotReadyCh)
 
@@ -120,7 +121,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 		cache.Indexers{},
 	)
 
-	backoffController := newResourceController(kubeClient, eventHandler, backoffInformer, "Backoff")
+	backoffController := newResourceController(kubeClient, eventHandler, backoffInformer, "Backoff", conf)
 	stopBackoffCh := make(chan struct{})
 	defer close(stopBackoffCh)
 
@@ -132,7 +133,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler) {
 	<-sigterm
 }
 
-func newResourceController(client kubernetes.Interface, eventHandler handlers.Handler, informer cache.SharedIndexInformer, resourceType string) *Controller {
+func newResourceController(client kubernetes.Interface, eventHandler handlers.Handler, informer cache.SharedIndexInformer, resourceType string, conf *config.Config) *Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	var newEvent Event
 	var err error
@@ -173,6 +174,7 @@ func newResourceController(client kubernetes.Interface, eventHandler handlers.Ha
 		informer:     informer,
 		queue:        queue,
 		eventHandler: eventHandler,
+		config:       conf,
 	}
 }
 
@@ -267,6 +269,7 @@ func (c *Controller) processItem(newEvent Event) error {
 	kbEvent := event.Event{
 		Namespace: newEvent.namespace,
 		Kind:      newEvent.resourceType,
+		Cluster:   c.config.Cluster,
 	}
 
 	switch newEvent.eventType {
@@ -276,19 +279,6 @@ func (c *Controller) processItem(newEvent Event) error {
 		return nil
 	}
 
-	kbEvent.NodeDescription = fmt.Sprintf("%s \n %s", objectMetadata.ClusterName, c.podsOnNodeToString(objectMetadata))
-	logrus.Printf("KbEvent.NodeDescription: %s", kbEvent.NodeDescription)
 	c.eventHandler.Handle(kbEvent)
 	return nil
-}
-
-func (c *Controller) podsOnNodeToString(m meta_v1.ObjectMeta) (s string) {
-	pods, err := c.clientset.CoreV1().Pods(m.Namespace).List(context.Background(), meta_v1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", m.Name)})
-	if err != nil {
-		logrus.Fatalf("Failed matching pods to a node: %s", err)
-	}
-	for _, pod := range pods.Items {
-		s = fmt.Sprintf("%s \n %s", s, pod.Name)
-	}
-	return
 }
