@@ -290,15 +290,12 @@ func (c *Controller) processItem(newEvent Event) error {
 
 func (c *Controller) getPodsOnNode(m meta_v1.ObjectMeta) (s string) {
 	trimmedNodeName := trimNodeName(m.Name)
-	logrus.Printf("Trimmed Node Name: %s", trimmedNodeName)
 	pods, err := c.clientset.CoreV1().Pods("").List(context.Background(), meta_v1.ListOptions{FieldSelector: fmt.Sprintf("spec.nodeName=%s", trimmedNodeName)})
 	if err != nil {
 		logrus.Fatalf("Failed matching pods to a node: %s", err)
 	}
 
 	for _, pod := range pods.Items {
-		logrus.Printf("Pod: %s", pod.Name)
-		logrus.Printf("Pod indirected: %s", &pod.Name)
 		s = fmt.Sprintf("%s \n %s", s, pod.Name)
 	}
 	return
