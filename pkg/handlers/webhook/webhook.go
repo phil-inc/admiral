@@ -22,7 +22,7 @@ type WebhookMessage struct {
 
 // Init creates the webhook configuration
 func (w *Webhook) Init(c *config.Config) error {
-	url := c.Handler.Webhook.Url
+	url := c.Events.Handler.Webhook.Url
 
 	w.url = url
 

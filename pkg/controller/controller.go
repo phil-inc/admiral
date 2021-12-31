@@ -12,6 +12,7 @@ import (
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/event"
 	"github.com/phil-inc/admiral/pkg/handlers"
+	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
@@ -20,6 +21,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -49,13 +51,23 @@ type Controller struct {
 }
 
 // Start creates watchers and runs their controllers
-func Start(conf *config.Config, eventHandler handlers.Handler) {
+func Start(conf *config.Config, eventHandler handlers.Handler, logStore logstores.Logstore) {
 	var kubeClient kubernetes.Interface
 
 	if _, err := rest.InClusterConfig(); err != nil {
 		kubeClient = utils.GetClientOutOfCluster()
 	} else {
 		kubeClient = utils.GetClient()
+	}
+
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
+
+	eventCtrl := NewEventController(informerFactory)
+	eventStop := make(chan struct{})
+	defer close(eventStop)
+	err := eventCtrl.Run(eventStop)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
 	// Unhealthy pod informer
@@ -190,7 +202,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) {
 	go c.informer.Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh, c.HasSynced) {
-		utilruntime.HandleError(fmt.Errorf("Cache sync timeout"))
+		utilruntime.HandleError(fmt.Errorf("cache sync timeout"))
 		return
 	}
 
@@ -248,7 +260,7 @@ func (c *Controller) processItem(newEvent Event) error {
 
 	obj, _, err := c.informer.GetIndexer().GetByKey(newEvent.key)
 	if err != nil {
-		return fmt.Errorf("Error fetching object with key %s from store: %v", newEvent.key, err)
+		return fmt.Errorf("error fetching object with key %s from store: %v", newEvent.key, err)
 	}
 
 	objectMetadata := utils.GetObjectMetaData(obj)

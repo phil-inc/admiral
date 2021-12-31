@@ -42,9 +42,18 @@ Presently, the application depends on a single configuration file:
 `${HOME}/.admiral.yaml`, which looks something like this:
 
 ```yaml
-webhook:
-    enabled: true
-    url: https://my.webhook.url
+cluster: my-cluster
+namespace: "" # Use all namespaces
+events:
+    handler:
+        webhook:
+            url: https://my.webhook.url
+logstream:
+    logstore:
+        loki:
+            url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
+    apps: # The label "app" on a pod
+        - name: my-app-deployment
 ```
 
 Based on the config, the application instantiates a handler. For now, the only

@@ -16,29 +16,28 @@ type Handler struct {
 	Webhook Webhook `json:"webhook"`
 }
 
-type Resource struct {
-	Deployment            bool `json:"deployment"`
-	ReplicationController bool `json:"rc"`
-	ReplicaSet            bool `json:"rs"`
-	DaemonSet             bool `json:"ds"`
-	Services              bool `json:"svc"`
-	Pod                   bool `json:"po"`
-	Job                   bool `json:"job"`
-	Node                  bool `json:"node"`
-	ClusterRole           bool `json:"clusterrole"`
-	ServiceAccount        bool `json:"sa"`
-	PersistentVolume      bool `json:"pv"`
-	Namespace             bool `json:"ns"`
-	Secret                bool `json:"secret"`
-	ConfigMap             bool `json:"configmap"`
-	Ingress               bool `json:"ing"`
+type Config struct {
+	Events    Events    `json:"events"`
+	Logstream Logstream `json:"logstream"`
+	Namespace string    `json:"namespace,omitempty"`
+	Cluster   string    `json:"cluster,omitempty"`
 }
 
-type Config struct {
-	Handler   Handler  `json:"handler"`
-	Resource  Resource `json:"resource"`
-	Namespace string   `json:"namespace,omitempty"`
-	Cluster   string   `json:"cluster,omitempty"`
+type Logstream struct {
+	Logstore Logstore `json:"logstore"`
+	Apps     []string `json:"apps"`
+}
+
+type Logstore struct {
+	Loki Loki `json:"loki"`
+}
+
+type Loki struct {
+	Url string `json:"url"`
+}
+
+type Events struct {
+	Handler Handler `json:"handler"`
 }
 
 type Webhook struct {
