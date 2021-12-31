@@ -12,11 +12,8 @@ var (
 	ConfigFileName = ".admiral.yaml"
 )
 
-type Handler struct {
-	Webhook Webhook `json:"webhook"`
-}
-
 type Config struct {
+	Fargate   bool      `json:fargate,omitempty"`
 	Events    Events    `json:"events"`
 	Logstream Logstream `json:"logstream"`
 	Namespace string    `json:"namespace,omitempty"`
@@ -38,6 +35,10 @@ type Loki struct {
 
 type Events struct {
 	Handler Handler `json:"handler"`
+}
+
+type Handler struct {
+	Webhook Webhook `json:"webhook"`
 }
 
 type Webhook struct {

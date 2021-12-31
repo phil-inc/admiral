@@ -17,15 +17,15 @@ type Event struct {
 // Message returns event message
 // These correlate to the informers defined in controller.go
 func (e *Event) Message() string {
-	msg := fmt.Sprintf("%s %s/%s: `%s`",
+	msg := fmt.Sprintf("%s %s/*%s*: `%s`",
 		e.Cluster,
 		e.Namespace,
 		e.Name,
-		e.Kind,
+		e.Reason,
 	)
 
 	if e.Extra != "" {
-		msg = fmt.Sprintf("%s \n %s", msg, e.Extra)
+		msg = fmt.Sprintf("%s\n%s", msg, e.Extra)
 	}
 
 	return msg
