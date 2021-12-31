@@ -8,6 +8,7 @@ import (
 	"github.com/phil-inc/admiral/pkg/handlers"
 	api_v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
+	"github.com/sirupsen/logrus"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
@@ -20,12 +21,14 @@ type EventController struct {
 }
 
 // Instantiates a controller for watching and handling events
-func NewEventController(informerFactory informers.SharedInformerFactory) *EventController {
+func NewEventController(informerFactory informers.SharedInformerFactory, handler handlers.Handler, config *config.Config) *EventController {
 	eventInformer := informerFactory.Core().V1().Events()
 
 	c := &EventController{
 		informerFactory: informerFactory,
 		eventInformer:   eventInformer,
+		handler: handler,
+		config: config,
 	}
 
 	eventInformer.Informer().AddEventHandler(
@@ -54,7 +57,7 @@ func (c *EventController) onEventAdd(obj interface{}) {
 	if serverStartTime.After(e.ObjectMeta.CreationTimestamp.Time) {
 		return
 	}
-
+	logrus.Printf("%s", c.config.Cluster)
 	switch e.Reason {
 	case "NodeNotReady", "Unhealthy":
 		c.handler.Handle(event.Event{
@@ -62,7 +65,7 @@ func (c *EventController) onEventAdd(obj interface{}) {
 			Kind:      e.Reason,
 			Cluster:   c.config.Cluster,
 			Name:      e.ObjectMeta.Name,
-			Extra:     e.Message,
+			Extra:     fmt.Sprintf("%s - %s", e.Message, e.ObjectMeta.CreationTimestamp.Time),
 		})
 	}
 }

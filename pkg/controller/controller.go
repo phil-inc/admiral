@@ -62,7 +62,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler, logStore logstore
 
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
 
-	eventCtrl := NewEventController(informerFactory)
+	eventCtrl := NewEventController(informerFactory, eventHandler, conf)
 	eventStop := make(chan struct{})
 	defer close(eventStop)
 	err := eventCtrl.Run(eventStop)
