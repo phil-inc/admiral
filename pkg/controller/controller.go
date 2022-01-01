@@ -38,6 +38,14 @@ func Start(conf *config.Config, eventHandler handlers.Handler, logStore logstore
 		logrus.Fatal(err)
 	}
 
+	podCtrl := NewPodController(informerFactory, kubeClient, conf)
+	podStop := make(chan struct{})
+	defer close(podStop)
+	err = podCtrl.Run(podStop)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
