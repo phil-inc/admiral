@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"io"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
@@ -42,19 +43,20 @@ func (l *Loki) Stream(log string) error {
 					"label1": "label2",
 				},
 				Values: [][]string{
-					[]string{log},
+					[]string{fmt.Sprintf("%d", time.Now().UnixNano()), log},
 				},
 			},
 		},
 	}
-	
 
 	body, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", l.url, bytes.NewBuffer(body))
+	url := fmt.Sprintf("%s/loki/api/v1/push", l.url)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -71,7 +73,7 @@ func (l *Loki) Stream(log string) error {
 		return err
 	}
 
-	logrus.Println("Sending logs to Loki: %s - %s", res.Status, b)
+	logrus.Printf("Sending logs to Loki: %s - %s", res.Status, string(b))
 	return nil
 }
 
