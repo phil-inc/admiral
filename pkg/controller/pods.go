@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
+	"github.com/phil-inc/admiral/pkg/logstores"
 	api_v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -21,10 +22,11 @@ type PodController struct {
 	config          *config.Config
 	logstream       map[string]chan struct{}
 	logstreamMu     sync.Mutex
+	logstore        logstores.Logstore
 }
 
 // Instantiates a controller for watching and handling pods
-func NewPodController(informerFactory informers.SharedInformerFactory, clientset kubernetes.Interface, config *config.Config) *PodController {
+func NewPodController(informerFactory informers.SharedInformerFactory, clientset kubernetes.Interface, config *config.Config, logstore logstores.Logstore) *PodController {
 	podInformer := informerFactory.Core().V1().Pods()
 
 	c := &PodController{
@@ -33,6 +35,7 @@ func NewPodController(informerFactory informers.SharedInformerFactory, clientset
 		clientset:       clientset,
 		config:          config,
 		logstream:       make(map[string]chan struct{}),
+		logstore:        logstore,
 	}
 
 	podInformer.Informer().AddEventHandler(
@@ -59,6 +62,7 @@ func (c *PodController) onPodAdd(obj interface{}) {
 	
 	if c.podIsInConfig(pod) {
 		if pod.Status.Phase == api_v1.PodRunning {
+			logrus.Printf("Streaming logs from %s", pod.ObjectMeta.Name)
 			c.streamLogsFromPod(pod)
 		}
 	}
@@ -71,11 +75,13 @@ func (c *PodController) onPodUpdate(old, new interface{}) {
 	if c.podIsInConfig(newPod) {
 		// Pod is running & was not previously
 		if newPod.Status.Phase == api_v1.PodRunning && oldPod.Status.Phase != api_v1.PodRunning {
+			logrus.Printf("Streaming logs from %s", newPod.ObjectMeta.Name)
 			c.streamLogsFromPod(newPod)
 		}
 
 		// Pod is not running, but was
 		if newPod.Status.Phase != api_v1.PodRunning && oldPod.Status.Phase == api_v1.PodRunning {
+			logrus.Printf("Stopped streaming logs from %s", newPod.ObjectMeta.Name)
 			c.stopLogStreamFromPod(newPod)
 		}
 	}
@@ -85,6 +91,7 @@ func (c *PodController) onPodDelete(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
 
 	if c.podIsInConfig(pod) {
+		logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
 		c.stopLogStreamFromPod(pod)
 	}
 }
@@ -106,7 +113,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			stream, err := c.clientset.CoreV1().Pods(pod.ObjectMeta.Namespace).GetLogs(pod.ObjectMeta.Name, &api_v1.PodLogOptions{
 				Container: container.Name,
 				Follow: true,
-				Timestamps: false,
+				Timestamps: true,
 				SinceSeconds: &sinceSeconds,
 			}).Stream(context.Background())
 			if err != nil {
@@ -126,7 +133,10 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 
 			for logs.Scan() {
 				// do something with each log line
-				logrus.Println(logs.Text())
+				err := c.logstore.Stream(logs.Text())
+				if err != nil {
+					logrus.Fatalf("Failed streaming log to logstore: %s", err)
+				}
 			}
 		}()
 	}

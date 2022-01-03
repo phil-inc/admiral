@@ -19,7 +19,7 @@ import (
 var serverStartTime time.Time
 
 // Start creates the informerFactory and initializes controllers
-func Start(conf *config.Config, eventHandler handlers.Handler, logStore logstores.Logstore) {
+func Start(conf *config.Config, eventHandler handlers.Handler, logstore logstores.Logstore) {
 	var kubeClient kubernetes.Interface
 
 	if _, err := rest.InClusterConfig(); err != nil {
@@ -38,7 +38,7 @@ func Start(conf *config.Config, eventHandler handlers.Handler, logStore logstore
 		logrus.Fatal(err)
 	}
 
-	podCtrl := NewPodController(informerFactory, kubeClient, conf)
+	podCtrl := NewPodController(informerFactory, kubeClient, conf, logstore)
 	podStop := make(chan struct{})
 	defer close(podStop)
 	err = podCtrl.Run(podStop)
