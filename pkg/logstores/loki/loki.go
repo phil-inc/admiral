@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"net/http"
 	"encoding/json"
+	"io"
 
+	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 )
 
@@ -59,11 +61,17 @@ func (l *Loki) Stream(log string) error {
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
-	_, err = client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	logrus.Println("Sending logs to Loki: %s - %s", res.Status, b)
 	return nil
 }
 
