@@ -117,7 +117,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 				SinceSeconds: &sinceSeconds,
 			}).Stream(context.Background())
 			if err != nil {
-				logrus.Fatal(err)
+				logrus.Error(err)
 			}
 			defer stream.Close()
 
