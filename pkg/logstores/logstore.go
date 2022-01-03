@@ -6,7 +6,7 @@ import (
 
 type Logstore interface {
 	Init(c *config.Config) error
-	Stream(log string) error
+	Stream(log string, pod string, container string) error
 }
 
 type Default struct{}
@@ -15,6 +15,6 @@ func (d *Default) Init(c *config.Config) error {
 	return nil
 }
 
-func (d *Default) Stream(log string) error {
+func (d *Default) Stream(log string, pod string, container string) error {
 	return nil
 }

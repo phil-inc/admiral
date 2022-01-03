@@ -133,7 +133,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 
 			for logs.Scan() {
 				// do something with each log line
-				err := c.logstore.Stream(logs.Text())
+				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Name, container.Name)
 				if err != nil {
 					logrus.Fatalf("Failed streaming log to logstore: %s", err)
 				}

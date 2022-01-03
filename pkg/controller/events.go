@@ -59,13 +59,11 @@ func (c *EventController) Run(stopCh chan struct{}) error {
 func (c *EventController) onEventAdd(obj interface{}) {
 	e := obj.(*api_v1.Event)
 
-	if serverStartTime.After(e.ObjectMeta.CreationTimestamp.Time) {
-		return
-	}
-
-	switch e.Reason {
-	case "NodeNotReady", "Unhealthy":
-		c.handler.Handle(c.newSendableEvent(e))
+	if serverStartTime.Before(e.ObjectMeta.CreationTimestamp.Time) {
+		switch e.Reason {
+		case "NodeNotReady", "Unhealthy":
+			c.handler.Handle(c.newSendableEvent(e))
+		}
 	}
 }
 

@@ -5,10 +5,8 @@ import (
 	"bytes"
 	"net/http"
 	"encoding/json"
-	"io"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 )
 
@@ -35,12 +33,13 @@ func (l *Loki) Init(c *config.Config) error {
 }
 
 // Stream sends the logs to Loki
-func (l *Loki) Stream(log string) error {
+func (l *Loki) Stream(log string, pod string, container string) error {
 	msg := &LokiDTO{
 		Streams: []Streams{
 			{
 				Stream: map[string]string{
-					"label1": "label2",
+					"pod": pod,
+					"container": container,
 				},
 				Values: [][]string{
 					[]string{fmt.Sprintf("%d", time.Now().UnixNano()), log},
@@ -63,17 +62,11 @@ func (l *Loki) Stream(log string) error {
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
-	res, err := client.Do(req)
+	_, err = client.Do(req)
 	if err != nil {
 		return err
 	}
 
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	logrus.Printf("Sending logs to Loki: %s - %s", res.Status, string(b))
 	return nil
 }
 
