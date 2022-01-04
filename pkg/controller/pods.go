@@ -175,8 +175,10 @@ func formatLogMetadata(m map[string]string) map[string]string {
 	for k, v := range m {
 		parsedK := strings.ReplaceAll(k, ".", "_")
 		parsedK = strings.ReplaceAll(parsedK, "\\", "-")
+		parsedK = strings.ReplaceAll(parsedK, "/", "-")
 		parsedV := strings.ReplaceAll(v, "\\", "-")
 		parsedV = strings.ReplaceAll(parsedV, ".", "_")
+		parsedV = strings.ReplaceAll(parsedV, "/", "-")
 		l[parsedK] = parsedV
 	}
 	return l
