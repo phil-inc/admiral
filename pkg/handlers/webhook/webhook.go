@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"time"
-
+	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/event"
 )
@@ -33,11 +31,11 @@ func (w *Webhook) Handle(e event.Event) {
 	msg := prepareWebhookMessage(e, w)
 	err := postMessage(w.url, msg)
 	if err != nil {
-		log.Printf("%s\n", err)
+		logrus.Errorf("%s\n", err)
 		return
 	}
 
-	log.Printf("Message sent to %s at %s ", w.url, time.Now())
+	logrus.Printf("Message sent: %s", msg)
 }
 
 func checkMissingVars(w *Webhook) error {
