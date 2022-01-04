@@ -134,7 +134,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			}()
 
 			logs := bufio.NewScanner(stream)
-
+			logrus.Printf("Scanner: %s", logs.Text())
 			for logs.Scan() {
 				// do something with each log line
 				err := c.logstore.Stream(logs.Text(), formatLogMetadata(pod.ObjectMeta.Labels))
