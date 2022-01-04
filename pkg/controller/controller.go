@@ -30,6 +30,8 @@ func Start(conf *config.Config, eventHandler handlers.Handler, logstore logstore
 
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
 
+	serverStartTime = time.Now()
+
 	eventCtrl := NewEventController(informerFactory, eventHandler, conf, kubeClient)
 	eventStop := make(chan struct{})
 	defer close(eventStop)

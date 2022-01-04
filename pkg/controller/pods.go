@@ -112,13 +112,10 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			c.logstream[name] = make(chan struct{})
 			c.logstreamMu.Unlock()
 
-			sinceSeconds := int64(1)
-
 			stream, err := c.clientset.CoreV1().Pods(pod.ObjectMeta.Namespace).GetLogs(pod.ObjectMeta.Name, &api_v1.PodLogOptions{
 				Container: con.Name,
 				Follow: true,
 				Timestamps: true,
-				SinceSeconds: &sinceSeconds,
 			}).Stream(context.Background())
 			if err != nil {
 				logrus.Error(err)
@@ -142,6 +139,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 					logrus.Fatalf("Failed streaming log to logstore: %s", err)
 				}
 			}
+			logrus.Printf("Scanner for %s closed", name)
 		}()
 	}
 }
