@@ -72,7 +72,6 @@ func (c *PodController) onPodUpdate(old, new interface{}) {
 	oldPod := old.(*api_v1.Pod)
 	newPod := new.(*api_v1.Pod)
 
-	logrus.Printf("Pod updated: %s", newPod.ObjectMeta.Name)
 	if c.podIsInConfig(newPod) {
 		// Pod is running & was not previously
 		if newPod.Status.Phase == api_v1.PodRunning && oldPod.Status.Phase != api_v1.PodRunning {

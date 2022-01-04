@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 )
 
@@ -59,10 +60,14 @@ func (l *Loki) Stream(log string, logMetadata map[string]string) error {
 	req.Header.Add("Content-Type", "application/json")
 
 	client := &http.Client{}
-	_, err = client.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(res.Body)
+	logrus.Printf("%s - %s", res.Status, buf.String())
 
 	return nil
 }
