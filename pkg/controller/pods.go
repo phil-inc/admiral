@@ -102,9 +102,10 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 	// add all of the containers in the pod to the logstream
 	// stream the logs
 	for _, container := range pod.Spec.Containers {
+		con := container
 		// process each log stream concurrently
 		go func() {
-			name := getLogstreamName(pod, container)
+			name := getLogstreamName(pod, con)
 			logrus.Printf("Opening stream from %s", name)
 
 			c.logstreamMu.Lock()
@@ -114,7 +115,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			sinceSeconds := int64(1)
 
 			stream, err := c.clientset.CoreV1().Pods(pod.ObjectMeta.Namespace).GetLogs(pod.ObjectMeta.Name, &api_v1.PodLogOptions{
-				Container: container.Name,
+				Container: con.Name,
 				Follow: true,
 				Timestamps: true,
 				SinceSeconds: &sinceSeconds,
@@ -135,9 +136,8 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			logs := bufio.NewScanner(stream)
 
 			for logs.Scan() {
-				logrus.Printf("Scanning logs from %s", name)
 				// do something with each log line
-				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Name, container.Name)
+				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Name, con.Name)
 				if err != nil {
 					logrus.Fatalf("Failed streaming log to logstore: %s", err)
 				}
