@@ -174,11 +174,13 @@ func formatLogMetadata(m map[string]string) map[string]string {
 	l := make(map[string]string)
 	for k, v := range m {
 		parsedK := strings.ReplaceAll(k, ".", "_")
-		parsedK = strings.ReplaceAll(parsedK, "\\", "-")
-		parsedK = strings.ReplaceAll(parsedK, "/", "-")
-		parsedV := strings.ReplaceAll(v, "\\", "-")
+		parsedK = strings.ReplaceAll(parsedK, "\\", "_")
+		parsedK = strings.ReplaceAll(parsedK, "-", "_")
+		parsedK = strings.ReplaceAll(parsedK, "/", "_")
+		parsedV := strings.ReplaceAll(v, "\\", "_")
+		parsedV = strings.ReplaceAll(parsedV, "-", "_")
 		parsedV = strings.ReplaceAll(parsedV, ".", "_")
-		parsedV = strings.ReplaceAll(parsedV, "/", "-")
+		parsedV = strings.ReplaceAll(parsedV, "/", "_")
 		l[parsedK] = parsedV
 	}
 	return l
