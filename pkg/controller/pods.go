@@ -59,7 +59,7 @@ func (c *PodController) Run(stopCh chan struct{}) error {
 
 func (c *PodController) onPodAdd(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
-	
+	logrus.Printf("Pod added: %s", pod.ObjectMeta.Name)
 	if c.podIsInConfig(pod) {
 		if pod.Status.Phase == api_v1.PodRunning {
 			logrus.Printf("Streaming logs from %s", pod.ObjectMeta.Name)
@@ -72,6 +72,7 @@ func (c *PodController) onPodUpdate(old, new interface{}) {
 	oldPod := old.(*api_v1.Pod)
 	newPod := new.(*api_v1.Pod)
 
+	logrus.Printf("Pod updated: %s", newPod.ObjectMeta.Name)
 	if c.podIsInConfig(newPod) {
 		// Pod is running & was not previously
 		if newPod.Status.Phase == api_v1.PodRunning && oldPod.Status.Phase != api_v1.PodRunning {
@@ -90,6 +91,7 @@ func (c *PodController) onPodUpdate(old, new interface{}) {
 func (c *PodController) onPodDelete(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
 
+	logrus.Printf("Pod deleted: %s", pod.ObjectMeta.Name)
 	if c.podIsInConfig(pod) {
 		logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
 		c.stopLogStreamFromPod(pod)
@@ -103,6 +105,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 		// process each log stream concurrently
 		go func() {
 			name := getLogstreamName(pod, container)
+			logrus.Printf("Opening stream from %s", name)
 
 			c.logstreamMu.Lock()
 			c.logstream[name] = make(chan struct{})
@@ -132,6 +135,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			logs := bufio.NewScanner(stream)
 
 			for logs.Scan() {
+				logrus.Printf("Scanning logs from %s", name)
 				// do something with each log line
 				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Name, container.Name)
 				if err != nil {
