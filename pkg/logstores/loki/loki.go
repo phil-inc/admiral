@@ -33,14 +33,11 @@ func (l *Loki) Init(c *config.Config) error {
 }
 
 // Stream sends the logs to Loki
-func (l *Loki) Stream(log string, pod string, container string) error {
+func (l *Loki) Stream(log string, logMetadata map[string]string) error {
 	msg := &LokiDTO{
 		Streams: []Streams{
 			{
-				Stream: map[string]string{
-					"pod": pod,
-					"container": container,
-				},
+				Stream: logMetadata,
 				Values: [][]string{
 					[]string{fmt.Sprintf("%d", time.Now().UnixNano()), log},
 				},

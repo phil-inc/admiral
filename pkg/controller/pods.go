@@ -137,7 +137,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 
 			for logs.Scan() {
 				// do something with each log line
-				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Name, con.Name)
+				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Labels)
 				if err != nil {
 					logrus.Fatalf("Failed streaming log to logstore: %s", err)
 				}
@@ -166,8 +166,6 @@ func (c *PodController) podIsInConfig(pod *api_v1.Pod) bool {
 }
 
 func getLogstreamName(pod *api_v1.Pod, container api_v1.Container) string {
-
 	name := fmt.Sprintf("%s.%s.%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, container.Name)
-
 	return name
 }
