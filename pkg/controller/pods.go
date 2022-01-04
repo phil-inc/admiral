@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"fmt"
 	"context"
+	"strings"
 	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/logstores"
@@ -136,7 +137,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 
 			for logs.Scan() {
 				// do something with each log line
-				err := c.logstore.Stream(logs.Text(), pod.ObjectMeta.Labels)
+				err := c.logstore.Stream(logs.Text(), formatLogMetadata(pod.ObjectMeta.Labels))
 				if err != nil {
 					logrus.Fatalf("Failed streaming log to logstore: %s", err)
 				}
@@ -167,4 +168,14 @@ func (c *PodController) podIsInConfig(pod *api_v1.Pod) bool {
 func getLogstreamName(pod *api_v1.Pod, container api_v1.Container) string {
 	name := fmt.Sprintf("%s.%s.%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, container.Name)
 	return name
+}
+
+func formatLogMetadata(m map[string]string) map[string]string {
+	l := make(map[string]string)
+	for k, v := range m {
+		parsedK := strings.ReplaceAll(k, ".", "_")
+		parsedV := strings.ReplaceAll(v, ".", "_")
+		l[parsedK] = parsedV
+	}
+	return l
 }

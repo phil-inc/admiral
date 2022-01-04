@@ -65,9 +65,11 @@ func (l *Loki) Stream(log string, logMetadata map[string]string) error {
 		return err
 	}
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(res.Body)
-	logrus.Printf("%s - %s", res.Status, buf.String())
+	if res.StatusCode != 204 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(res.Body)
+		logrus.Printf("%s - %s", res.Status, buf.String())
+	}
 
 	return nil
 }
