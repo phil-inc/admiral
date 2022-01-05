@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"sync"
 	"bufio"
 	"fmt"
 	"context"
@@ -22,7 +21,6 @@ type PodController struct {
 	clientset       kubernetes.Interface
 	config          *config.Config
 	logstream       map[string]chan struct{}
-	logstreamMu     sync.Mutex
 	logstore        logstores.Logstore
 }
 
@@ -60,7 +58,6 @@ func (c *PodController) Run(stopCh chan struct{}) error {
 
 func (c *PodController) onPodAdd(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
-	logrus.Printf("Pod added: %s", pod.ObjectMeta.Name)
 	if c.podIsInConfig(pod) {
 		if pod.Status.Phase == api_v1.PodRunning {
 			logrus.Printf("Streaming logs from %s", pod.ObjectMeta.Name)
@@ -90,8 +87,6 @@ func (c *PodController) onPodUpdate(old, new interface{}) {
 
 func (c *PodController) onPodDelete(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
-
-	logrus.Printf("Pod deleted: %s", pod.ObjectMeta.Name)
 	if c.podIsInConfig(pod) {
 		logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
 		c.stopLogStreamFromPod(pod)
@@ -103,15 +98,12 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 	// stream the logs
 	for _, container := range pod.Spec.Containers {
 		con := container
+		name := getLogstreamName(pod, con)
+		logrus.Printf("Opening stream from %s", name)
+		c.logstream[name] = make(chan struct{})
+
 		// process each log stream concurrently
 		go func() {
-			name := getLogstreamName(pod, con)
-			logrus.Printf("Opening stream from %s", name)
-
-			c.logstreamMu.Lock()
-			c.logstream[name] = make(chan struct{})
-			c.logstreamMu.Unlock()
-
 			stream, err := c.clientset.CoreV1().Pods(pod.ObjectMeta.Namespace).GetLogs(pod.ObjectMeta.Name, &api_v1.PodLogOptions{
 				Container: con.Name,
 				Follow: true,
@@ -120,18 +112,16 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 			if err != nil {
 				logrus.Error(err)
 			}
+			logrus.Printf("Opened logstream: %s", name)
 			defer stream.Close()
 
 			// concurrently wait for the receiver to close, then close the stream
 			go func() {
-				c.logstreamMu.Lock()
 				<-c.logstream[name]
-				c.logstreamMu.Unlock()
 				stream.Close()
 			}()
 
 			logs := bufio.NewScanner(stream)
-			logrus.Printf("Scanner: %s", logs.Text())
 			for logs.Scan() {
 				// do something with each log line
 				err := c.logstore.Stream(logs.Text(), formatLogMetadata(pod.ObjectMeta.Labels))
@@ -147,9 +137,7 @@ func (c *PodController) streamLogsFromPod(pod *api_v1.Pod) {
 func (c *PodController) stopLogStreamFromPod(pod *api_v1.Pod) {
 	for _, container := range pod.Spec.Containers {
 		name := getLogstreamName(pod, container)
-		c.logstreamMu.Lock()
 		close(c.logstream[name])
-		c.logstreamMu.Unlock()
 	}
 }
 
