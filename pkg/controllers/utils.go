@@ -1,6 +1,6 @@
-package controller
+package controllers
 
-import(
+import (
 	"fmt"
 	"strings"
 )
@@ -8,7 +8,7 @@ import(
 // Fargate nodes queried from the API server have an extra ".000~"
 // appended to the end, but the API server does not recognize
 // that extra substring when performing Get or Describe ops.
-func trimNodeName(s string) (k string) {
+func TrimNodeName(s string) (k string) {
 	// Fargate node names are formatted like:
 	//    <node-name>.ec2.internal.<resource-id>
 	// We want to strip away '.<resource-id>

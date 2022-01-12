@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/event"
+	"github.com/sirupsen/logrus"
+	"net/http"
 )
 
 type Webhook struct {

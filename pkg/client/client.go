@@ -2,20 +2,52 @@ package client
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
-	"github.com/phil-inc/admiral/pkg/controller"
+	"github.com/phil-inc/admiral/pkg/controllers"
+	"github.com/phil-inc/admiral/pkg/controllers/events"
+	"github.com/phil-inc/admiral/pkg/controllers/logs"
 	"github.com/phil-inc/admiral/pkg/handlers"
 	"github.com/phil-inc/admiral/pkg/handlers/webhook"
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/phil-inc/admiral/pkg/logstores/loki"
+	"github.com/phil-inc/admiral/pkg/utils"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // Run runs the event loop on a given handler
-func Run(conf *config.Config) {
-	var eventHandler = ParseEventHandler(conf)
-	var logStore = ParseLogHandler(conf)
-	controller.Start(conf, eventHandler, logStore)
+func Run(conf *config.Config, operation string) {
+	var kubeClient kubernetes.Interface
+	if _, err := rest.InClusterConfig(); err != nil {
+		kubeClient = utils.GetClientOutOfCluster()
+	} else {
+		kubeClient = utils.GetClient()
+	}
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
+
+	var ctrl controllers.Controller
+	switch operation {
+	case "logs":
+		var logStore = ParseLogHandler(conf)
+		ctrl = logs.NewLogController(informerFactory, kubeClient, conf, logStore)
+	case "events":
+		var eventHandler = ParseEventHandler(conf)
+		ctrl = events.NewEventController(informerFactory, eventHandler, conf, kubeClient)
+	}
+
+	ctrlStop := ctrl.Watch()
+	defer close(ctrlStop)
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	signal.Notify(sigterm, syscall.SIGINT)
+	<-sigterm
 }
 
 // ParseEventHandler returns the first event handler it finds (top to bottom)

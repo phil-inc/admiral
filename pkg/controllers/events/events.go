@@ -1,19 +1,21 @@
-package controller
+package events
 
 import (
-	"fmt"
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
+	utils "github.com/phil-inc/admiral/pkg/controllers"
 	"github.com/phil-inc/admiral/pkg/event"
 	"github.com/phil-inc/admiral/pkg/handlers"
+	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
-	"github.com/sirupsen/logrus"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 type EventController struct {
@@ -24,6 +26,8 @@ type EventController struct {
 	clientset       kubernetes.Interface
 }
 
+var serverStartTime = time.Now()
+
 // Instantiates a controller for watching and handling events
 func NewEventController(informerFactory informers.SharedInformerFactory, handler handlers.Handler, config *config.Config, clientset kubernetes.Interface) *EventController {
 	eventInformer := informerFactory.Core().V1().Events()
@@ -31,9 +35,9 @@ func NewEventController(informerFactory informers.SharedInformerFactory, handler
 	c := &EventController{
 		informerFactory: informerFactory,
 		eventInformer:   eventInformer,
-		handler: handler,
-		config: config,
-		clientset: clientset,
+		handler:         handler,
+		config:          config,
+		clientset:       clientset,
 	}
 
 	eventInformer.Informer().AddEventHandler(
@@ -45,6 +49,16 @@ func NewEventController(informerFactory informers.SharedInformerFactory, handler
 	)
 
 	return c
+}
+
+// Watch creates the informerFactory and initializes the events watcher
+func (c *EventController) Watch() chan struct{} {
+	eventStop := make(chan struct{})
+	err := c.Run(eventStop)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	return eventStop
 }
 
 func (c *EventController) Run(stopCh chan struct{}) error {
@@ -83,13 +97,13 @@ func (c *EventController) getLabelFromNode(key string, node string) string {
 
 func (c *EventController) newSendableEvent(e *api_v1.Event) (n event.Event) {
 	n.Namespace = e.ObjectMeta.Namespace
-	n.Reason    = e.Reason
-	n.Cluster   = c.config.Cluster
-	n.Name      = e.ObjectMeta.Name
-	n.Extra     = fmt.Sprintf("%s - %s", e.Message, e.ObjectMeta.CreationTimestamp.Time)
+	n.Reason = e.Reason
+	n.Cluster = c.config.Cluster
+	n.Name = e.ObjectMeta.Name
+	n.Extra = fmt.Sprintf("%s - %s", e.Message, e.ObjectMeta.CreationTimestamp.Time)
 
 	if c.config.Fargate && e.InvolvedObject.Kind == "Node" {
-		p := trimNodeName(e.ObjectMeta.Name)
+		p := utils.TrimNodeName(e.ObjectMeta.Name)
 		n.Extra = fmt.Sprintf("%s - %s", n.Extra, c.getLabelFromNode("topology.kubernetes.io/zone", p))
 	}
 	return

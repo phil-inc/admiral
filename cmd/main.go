@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/common-nighthawk/go-figure"
 	"github.com/phil-inc/admiral/config"
-	"github.com/phil-inc/admiral/pkg/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -13,6 +13,8 @@ import (
 
 const admiralConfigFile = ".admiral.yaml"
 
+var philLogo = figure.NewColorFigure("phil, inc.", "", "cyan", true)
+var admiralLogo = figure.NewColorFigure("Admiral", "", "green", true)
 var cfgFile string
 
 var RootCmd = &cobra.Command{
@@ -26,11 +28,14 @@ cluster to do operations on behalf of the operator.
 `,
 
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 {
+			logrus.Warn("Unexpected argument(s) to command \"admiral\". Expected 0 arguments.")
+		}
 		config := &config.Config{}
 		if err := config.Load(); err != nil {
 			logrus.Fatal(err)
 		}
-		client.Run(config)
+		logrus.Info("See \"admiral help\" for information on how to use Admiral")
 	},
 }
 
@@ -45,10 +50,17 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Disable Help subcommand
 	RootCmd.SetHelpCommand(&cobra.Command{
-		Use:    "no-help",
+		Use:    "help",
 		Hidden: true,
+		Short:  "Admiral automates operations in a Kubernetes cluster",
+		Long: `
+	Find more information at https://github.com/philinc/admiral
+
+Commands:
+	events	Stream events from a cluster to a backend
+	logs	Stream logs from a cluster to a backend
+		`,
 	})
 }
 
@@ -67,5 +79,7 @@ func initConfig() {
 }
 
 func main() {
+	admiralLogo.Print()
+	philLogo.Print()
 	Execute()
 }

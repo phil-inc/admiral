@@ -1,14 +1,14 @@
 package loki
 
 import (
-	"fmt"
 	"bytes"
-	"net/http"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/phil-inc/admiral/config"
+	"github.com/sirupsen/logrus"
 )
 
 type Loki struct {
@@ -21,7 +21,7 @@ type LokiDTO struct {
 
 type Streams struct {
 	Stream map[string]string `json:"stream"`
-	Values [][]string `json:"values"`
+	Values [][]string        `json:"values"`
 }
 
 // Init creates the loki configuration
