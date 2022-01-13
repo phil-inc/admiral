@@ -98,7 +98,6 @@ func (c *LogController) onPodDelete(obj interface{}) {
 }
 
 func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
-	logrus.Printf("Streaming logs from %s", pod.ObjectMeta.Name)
 	// add all of the containers in the log to the logstream
 	// stream the logs
 	for _, container := range pod.Spec.Containers {
@@ -107,7 +106,6 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 		// if the entry already exists in the logstream, skip
 		if _, ok := c.logstream[name]; ok {
-			logrus.Printf("Logstream %s already opened", name)
 			continue
 		}
 
@@ -131,6 +129,7 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 			go func() {
 				<-c.logstream[name]
 				stream.Close()
+				delete(c.logstream, name)
 				logrus.Printf("Received logstream closure: %s", name)
 			}()
 
@@ -144,6 +143,7 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 			}
 			if logs.Err() != nil {
 				logrus.Errorf("%s: %s", name, logs.Err())
+				close(c.logstream[name])
 			}
 			logrus.Printf("Scanner for %s closed", name)
 		}()
