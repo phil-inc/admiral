@@ -123,8 +123,7 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 				logrus.Error(err)
 			}
 			logrus.Printf("Opened logstream: %s", name)
-			defer stream.Close()
-
+			defer close(c.logstream[name])
 			// concurrently wait for the receiver to close, then close the stream
 			go func() {
 				<-c.logstream[name]
