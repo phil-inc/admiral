@@ -8,14 +8,15 @@ on:
 jobs:
   push-latest-image:
     name: Build & Push Latest Image
-    env:
-      SHORT_SHA: ${GITHUB_SHA::8}
     runs-on: ubuntu-latest
     steps:
+      - name: Calculate short SHA
+        id: sha
+        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
       - uses: actions/checkout@v2
       - name: Build Latest
-        run: docker build . -t philinc/admiral:${SHORT_SHA}
+        run: docker build . -t philinc/admiral:${{ steps.slug.outputs.sha8 }}
       - name: Login
         run: docker login -u ${{ secrets.docker_username }} -p ${{ secrets.docker_password }}
       - name: Push Latest
-        run: docker push philinc/admiral:${SHORT_SHA}
+        run: docker push philinc/admiral:${{ steps.slug.outputs.sha8 }}
