@@ -8,12 +8,14 @@ on:
 jobs:
   push-latest-image:
     name: Build & Push Latest Image
+    env:
+      SHORT_SHA: ${GITHUB_SHA::8}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Build Latest
-        run: docker build . -t philinc/admiral:latest
+        run: docker build . -t philinc/admiral:${SHORT_SHA}
       - name: Login
         run: docker login -u ${{ secrets.docker_username }} -p ${{ secrets.docker_password }}
       - name: Push Latest
-        run: docker push philinc/admiral:latest
+        run: docker push philinc/admiral:${SHORT_SHA}
