@@ -146,8 +146,8 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 				if logs.Err() != nil {
 					logrus.Errorf("Scanner failed %s: %s", name, logs.Err())
-					close(c.logstream[name])
 				}
+
 				logrus.Printf("Scanner for %s closed", name)
 			}
 		}()
