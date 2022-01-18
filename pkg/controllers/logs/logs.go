@@ -122,7 +122,6 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 			if err != nil {
 				logrus.Errorf("Failed opening logstream %s: %s", name, err)
-				close(c.logstream[name])
 			} else {
 				logrus.Printf("Opened logstream: %s", name)
 				defer close(c.logstream[name])
