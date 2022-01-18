@@ -138,11 +138,17 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 				for logs.Scan() {
 					// do something with each log line
-					logMetaData := formatLogMetadata(pod.ObjectMeta.Labels)
-					logMetaData["pod_name"] = pod.GetName()
+
+					// prepare log meta data
+					logMetaData := make(map[string]string)
+					for k, v := range pod.ObjectMeta.Labels {
+						logMetaData[k] = v
+					}
+					logMetaData["pod"] = pod.GetName()
 					logMetaData["namespace"] = pod.GetNamespace()
 					logMetaData["cluster"] = pod.GetClusterName()
-					err := c.logstore.Stream(logs.Text(), logMetaData)
+
+					err := c.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 					if err != nil {
 						logrus.Fatalf("Failed streaming log to logstore: %s", err)
 					}
