@@ -119,32 +119,38 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 				Follow:     true,
 				Timestamps: true,
 			}).Stream(context.Background())
-			if err != nil {
-				logrus.Error(err)
-			}
-			logrus.Printf("Opened logstream: %s", name)
-			defer close(c.logstream[name])
-			// concurrently wait for the receiver to close, then close the stream
-			go func() {
-				<-c.logstream[name]
-				stream.Close()
-				delete(c.logstream, name)
-				logrus.Printf("Received logstream closure: %s", name)
-			}()
 
-			logs := bufio.NewScanner(stream)
-			for logs.Scan() {
-				// do something with each log line
-				err := c.logstore.Stream(logs.Text(), formatLogMetadata(pod.ObjectMeta.Labels))
-				if err != nil {
-					logrus.Fatalf("Failed streaming log to logstore: %s", err)
-				}
-			}
-			if logs.Err() != nil {
-				logrus.Errorf("%s: %s", name, logs.Err())
+			if err != nil {
+				logrus.Errorf("Failed opening logstream %s: %s", name, err)
 				close(c.logstream[name])
+			} else {
+				logrus.Printf("Opened logstream: %s", name)
+				defer close(c.logstream[name])
+
+				// concurrently wait for the receiver to close, then close the stream
+				go func() {
+					<-c.logstream[name]
+					stream.Close()
+					delete(c.logstream, name)
+					logrus.Printf("Received logstream closure: %s", name)
+				}()
+
+				logs := bufio.NewScanner(stream)
+
+				for logs.Scan() {
+					// do something with each log line
+					err := c.logstore.Stream(logs.Text(), formatLogMetadata(pod.ObjectMeta.Labels))
+					if err != nil {
+						logrus.Fatalf("Failed streaming log to logstore: %s", err)
+					}
+				}
+
+				if logs.Err() != nil {
+					logrus.Errorf("Scanner failed %s: %s", name, logs.Err())
+					close(c.logstream[name])
+				}
+				logrus.Printf("Scanner for %s closed", name)
 			}
-			logrus.Printf("Scanner for %s closed", name)
 		}()
 	}
 }
