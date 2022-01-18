@@ -4,11 +4,9 @@ on:
   push:
     branches-ignore:
       - master
-      - release
   pull_request:
     branches:
       - master
-      - release
 
 jobs:
   lint-repo:
