@@ -3,7 +3,7 @@ name: Releases
 on:
   push:
     branches:
-      - release
+      - master
 
 jobs:
   push-latest-image:
