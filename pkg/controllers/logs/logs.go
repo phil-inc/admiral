@@ -150,7 +150,7 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 					err := c.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 					if err != nil {
-						logrus.Fatalf("Failed streaming log to logstore: %s", err)
+						logrus.Errorf("Failed streaming log to logstore: %s", err)
 					}
 				}
 
