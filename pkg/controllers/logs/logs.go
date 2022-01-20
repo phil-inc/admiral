@@ -168,7 +168,9 @@ func (c *LogController) stopLogStreamFromPod(pod *api_v1.Pod) {
 	logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
 	for _, container := range pod.Spec.Containers {
 		name := getLogstreamName(pod, container)
-		close(c.logstream[name])
+		if stream, ok := c.logstream[name]; ok {
+			close(stream)
+		}
 	}
 }
 
