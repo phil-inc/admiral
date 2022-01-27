@@ -124,8 +124,11 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 				logrus.Errorf("Failed opening logstream %s: %s", name, err)
 			} else {
 				logrus.Printf("Opened logstream: %s", name)
-				defer close(c.logstream[name])
-
+				defer func() {
+					if stream, ok := c.logstream[name]; ok {
+						close(stream)
+					}
+				}()
 				// concurrently wait for the receiver to close, then close the stream
 				go func() {
 					<-c.logstream[name]
@@ -150,7 +153,7 @@ func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
 
 					err := c.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 					if err != nil {
-						logrus.Fatalf("Failed streaming log to logstore: %s", err)
+						logrus.Errorf("Failed streaming log to logstore: %s", err)
 					}
 				}
 
@@ -168,7 +171,9 @@ func (c *LogController) stopLogStreamFromPod(pod *api_v1.Pod) {
 	logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
 	for _, container := range pod.Spec.Containers {
 		name := getLogstreamName(pod, container)
-		close(c.logstream[name])
+		if stream, ok := c.logstream[name]; ok {
+			close(stream)
+		}
 	}
 }
 
