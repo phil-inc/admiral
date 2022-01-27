@@ -1,9 +1,11 @@
 FROM golang:stretch
 
 COPY --from=alpine/helm:3.6.3 /usr/bin/helm /usr/local/bin
+COPY .bashrc .bashrc
+RUN mv .bashrc ~/.bashrc
 
 RUN apt-get update && \
-    apt-get install -y apt-transport-https ca-certificates unzip && \
+    apt-get install -y apt-transport-https ca-certificates unzip vim && \
     curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list && \
     apt-get update && \
