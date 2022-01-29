@@ -13,7 +13,7 @@ var (
 )
 
 type Config struct {
-	Fargate   bool      `json:fargate,omitempty"`
+	Fargate   bool      `json:"fargate,omitempty"`
 	Events    Events    `json:"events"`
 	Logstream Logstream `json:"logstream"`
 	Namespace string    `json:"namespace,omitempty"`
@@ -54,29 +54,7 @@ func New() (*Config, error) {
 	return c, nil
 }
 
-func createIfNotExist() error {
-	configFile := filepath.Join(configDir(), ConfigFileName)
-	_, err := os.Stat(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			file, err := os.Create(configFile)
-			if err != nil {
-				return err
-			}
-			file.Close()
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
 func (c *Config) Load() error {
-	err := createIfNotExist()
-	if err != nil {
-		return err
-	}
-
 	file, err := os.Open(getConfigFile())
 	if err != nil {
 		return err

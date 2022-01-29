@@ -1,9 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	apps_v1 "k8s.io/api/apps/v1"
 	batch_v1 "k8s.io/api/batch/v1"
 	api_v1 "k8s.io/api/core/v1"
@@ -16,18 +16,18 @@ import (
 )
 
 // GetClient returns a clientset from inside the cluster
-func GetClient() kubernetes.Interface {
+func GetClient() (kubernetes.Interface, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		logrus.Fatalf("Can not get kube config: %v", err)
+		return nil, fmt.Errorf("Can not get kube config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logrus.Fatalf("Can not create kube client: %v", err)
+		return nil, fmt.Errorf("Can not create kube client: %v", err)
 	}
 
-	return clientset
+	return clientset, nil
 }
 
 func buildOutOfClusterConfig() (*rest.Config, error) {
@@ -39,18 +39,18 @@ func buildOutOfClusterConfig() (*rest.Config, error) {
 }
 
 // GetClientOutOfCluster returns a kube clientset from outside of cluster
-func GetClientOutOfCluster() kubernetes.Interface {
+func GetClientOutOfCluster() (kubernetes.Interface, error) {
 	config, err := buildOutOfClusterConfig()
 	if err != nil {
-		logrus.Fatalf("Can not get kube config: %v", err)
+		return nil, fmt.Errorf("Can not get kube config: %v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logrus.Fatalf("Can not get kubernetes config: %v", err)
+		return nil, fmt.Errorf("Can not get kubernetes config: %v", err)
 	}
 
-	return clientset
+	return clientset, nil
 }
 
 // GetObjectMetaData queries for k8s metadata on a given object
