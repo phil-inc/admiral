@@ -45,17 +45,21 @@ type Webhook struct {
 	Url string `json:"url"`
 }
 
-func New() (*Config, error) {
+func New(path string) (*Config, error) {
 	c := &Config{}
-	if err := c.Load(); err != nil {
+	if err := c.Load(path); err != nil {
 		return c, err
 	}
 
 	return c, nil
 }
 
-func (c *Config) Load() error {
-	file, err := os.Open(getConfigFile())
+func (c *Config) Load(path string) error {
+	if path == "" {
+		path = getConfigFile()
+	}
+
+	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}

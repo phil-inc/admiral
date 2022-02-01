@@ -27,7 +27,7 @@ func LogsCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s", "Too many arguments")
 	}
 	config := &config.Config{}
-	if err := config.Load(); err != nil {
+	if err := config.Load(configPath); err != nil {
 		return err
 	}
 

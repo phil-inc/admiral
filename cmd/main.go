@@ -9,6 +9,7 @@ import (
 
 var philLogo = figure.NewColorFigure("phil, inc.", "", "cyan", true)
 var admiralLogo = figure.NewColorFigure("Admiral", "", "green", true)
+var configPath string
 
 func main() {
 	admiralLogo.Print()
@@ -20,6 +21,7 @@ func main() {
 		NewLogsCmd(),
 		NewEventsCmd(),
 	)
+	rootCmd.PersistentFlags().StringVarP(&configPath, "file", "f", "", "specify a path to a YAML file")
 
 	err := rootCmd.Execute()
 	if err != nil {

@@ -40,7 +40,7 @@ func (l *Loki) Stream(log string, logMetadata map[string]string) error {
 			{
 				Stream: logMetadata,
 				Values: [][]string{
-					[]string{fmt.Sprintf("%d", time.Now().UnixNano()), log},
+					{fmt.Sprintf("%d", time.Now().UnixNano()), log},
 				},
 			},
 		},

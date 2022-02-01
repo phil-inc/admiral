@@ -1,9 +1,9 @@
 package main
 
-import(
+import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func NewRootCmd() *cobra.Command {

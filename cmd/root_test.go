@@ -1,6 +1,6 @@
 package main
 
-import(
+import (
 	"bytes"
 	"testing"
 
@@ -13,11 +13,11 @@ func Test_NewRootCmd(t *testing.T) {
 	// usage is what NewRootCmd prints to stdout when a user uses it wrong
 	usage := "Usage:\n  admiral [flags]\n\nFlags:\n  -h, --help   help for admiral\n\n"
 
-	var tcs = []struct{
-		name string
-		args []string
+	var tcs = []struct {
+		name     string
+		args     []string
 		succeeds bool
-		output string
+		output   string
 	}{
 		{"should succeed with no args", []string{}, true, ""},
 		{"should succeed with a -h flag", []string{"-h"}, true, help},

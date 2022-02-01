@@ -11,14 +11,14 @@ on:
 jobs:
   lint-repo:
     name: Lint & format code
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: go fmt
-        run: "make fmt 2>&1 | read"
+        run: if [ "$(make fmt_list | wc -l)" -gt 1 ]; then exit 1; fi
   build-image:
     name: Run `go build`
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Build

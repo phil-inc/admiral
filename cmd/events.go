@@ -28,7 +28,7 @@ func EventsCmd(cmd *cobra.Command, args []string) error {
 	}
 	config := &config.Config{}
 
-	if err := config.Load(); err != nil {
+	if err := config.Load(configPath); err != nil {
 		return err
 	}
 
