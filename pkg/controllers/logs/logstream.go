@@ -63,6 +63,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 			}
 			logMetaData["pod"] = l.pod
 			logMetaData["namespace"] = l.namespace
+			logrus.Printf("%s: %s", l.pod, logs.Text())
 			err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 			if err != nil {
 				logrus.Errorf("Failed streaming log to logstore: %s", err)
