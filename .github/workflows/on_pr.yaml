@@ -1,7 +1,7 @@
 name: Releases
 
 on:
-  push:
+  pull_request:
     branches:
       - master
 
@@ -11,6 +11,8 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
+      - name: Format repo
+        run: if [ "$(make fmt_list | wc -l)" -gt 1 ]; then exit 1; fi
       - name: Build Latest
         run: docker build . -t philinc/admiral:${GITHUB_SHA::8}
       - name: Login
