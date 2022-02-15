@@ -1,4 +1,4 @@
-FROM golang:stretch
+FROM golang:1.17-bullseye
 
 COPY --from=alpine/helm:3.6.3 /usr/bin/helm /usr/local/bin
 COPY .bashrc .bashrc

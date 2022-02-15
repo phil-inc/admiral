@@ -22,13 +22,19 @@ import (
 )
 
 // Run runs the event loop on a given handler
-func Run(conf *config.Config, operation string) {
+func Run(conf *config.Config, operation string) error {
 	var kubeClient kubernetes.Interface
-	if _, err := rest.InClusterConfig(); err != nil {
-		kubeClient = utils.GetClientOutOfCluster()
+	var err error
+	_, notInCluster := rest.InClusterConfig()
+	if notInCluster != nil {
+		kubeClient, err = utils.GetClientOutOfCluster()
 	} else {
-		kubeClient = utils.GetClient()
+		kubeClient, err = utils.GetClientOutOfCluster()
 	}
+	if err != nil {
+		return err
+	}
+
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
 
 	var ctrl controllers.Controller
@@ -48,6 +54,8 @@ func Run(conf *config.Config, operation string) {
 	signal.Notify(sigterm, syscall.SIGTERM)
 	signal.Notify(sigterm, syscall.SIGINT)
 	<-sigterm
+
+	return nil
 }
 
 // ParseEventHandler returns the first event handler it finds (top to bottom)

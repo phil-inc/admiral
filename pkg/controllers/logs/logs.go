@@ -1,8 +1,6 @@
 package logs
 
 import (
-	"bufio"
-	"context"
 	"fmt"
 	"strings"
 
@@ -21,7 +19,7 @@ type LogController struct {
 	podInformer     coreinformers.PodInformer
 	clientset       kubernetes.Interface
 	config          *config.Config
-	logstream       map[string]chan struct{}
+	logstreams      map[string]*logstream
 	logstore        logstores.Logstore
 }
 
@@ -34,7 +32,7 @@ func NewLogController(informerFactory informers.SharedInformerFactory, clientset
 		podInformer:     podInformer,
 		clientset:       clientset,
 		config:          config,
-		logstream:       make(map[string]chan struct{}),
+		logstreams:      make(map[string]*logstream),
 		logstore:        logstore,
 	}
 
@@ -72,7 +70,7 @@ func (c *LogController) onPodAdd(obj interface{}) {
 
 	if c.podIsInConfig(pod) {
 		if pod.Status.Phase == api_v1.PodRunning {
-			c.streamLogsFromPod(pod)
+			c.newPod(pod)
 		}
 	}
 }
@@ -83,9 +81,9 @@ func (c *LogController) onPodUpdate(old, new interface{}) {
 	if c.podIsInConfig(pod) {
 		switch pod.Status.Phase {
 		case api_v1.PodRunning:
-			c.streamLogsFromPod(pod)
+			c.newPod(pod)
 		case api_v1.PodSucceeded, api_v1.PodFailed:
-			c.stopLogStreamFromPod(pod)
+			c.finishedPod(pod)
 		}
 	}
 }
@@ -93,87 +91,56 @@ func (c *LogController) onPodUpdate(old, new interface{}) {
 func (c *LogController) onPodDelete(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
 	if c.podIsInConfig(pod) {
-		c.stopLogStreamFromPod(pod)
+		c.deletedPod(pod)
 	}
 }
 
-func (c *LogController) streamLogsFromPod(pod *api_v1.Pod) {
-	// add all of the containers in the log to the logstream
-	// stream the logs
+func (c *LogController) newPod(pod *api_v1.Pod) {
 	for _, container := range pod.Spec.Containers {
-		con := container
-		name := getLogstreamName(pod, con)
+		name := getLogstreamName(pod, container)
+		stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore)
+		_, exists := c.logstreams[name]
 
-		// if the entry already exists in the logstream, skip
-		if _, ok := c.logstream[name]; ok {
+		if exists {
+			if !c.logstreams[name].Finished {
+				continue
+			}
+		}
+
+		if !exists {
+			c.logstreams[name] = stream
+		}
+
+		stream.Start(c.clientset)
+	}
+}
+
+func (c *LogController) finishedPod(pod *api_v1.Pod) {
+	for _, container := range pod.Spec.Containers {
+		name := getLogstreamName(pod, container)
+
+		if c.logstreams[name] == nil {
 			continue
 		}
 
-		logrus.Printf("Opening stream from %s", name)
-		c.logstream[name] = make(chan struct{})
+		if c.logstreams[name].Finished {
+			continue
+		}
 
-		// process each log stream concurrently
-		go func() {
-			stream, err := c.clientset.CoreV1().Pods(pod.ObjectMeta.Namespace).GetLogs(pod.ObjectMeta.Name, &api_v1.PodLogOptions{
-				Container:  con.Name,
-				Follow:     true,
-				Timestamps: true,
-			}).Stream(context.Background())
-
-			if err != nil {
-				logrus.Errorf("Failed opening logstream %s: %s", name, err)
-			} else {
-				logrus.Printf("Opened logstream: %s", name)
-				defer func() {
-					if stream, ok := c.logstream[name]; ok {
-						close(stream)
-					}
-				}()
-				// concurrently wait for the receiver to close, then close the stream
-				go func() {
-					<-c.logstream[name]
-					stream.Close()
-					delete(c.logstream, name)
-					logrus.Printf("Received logstream closure: %s", name)
-				}()
-
-				logs := bufio.NewScanner(stream)
-
-				for logs.Scan() {
-					// do something with each log line
-
-					// prepare log meta data
-					logMetaData := make(map[string]string)
-					for k, v := range pod.ObjectMeta.Labels {
-						logMetaData[k] = v
-					}
-					logMetaData["pod"] = pod.GetName()
-					logMetaData["namespace"] = pod.GetNamespace()
-					logMetaData["cluster"] = pod.GetClusterName()
-
-					err := c.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
-					if err != nil {
-						logrus.Errorf("Failed streaming log to logstore: %s", err)
-					}
-				}
-
-				if logs.Err() != nil {
-					logrus.Errorf("Scanner failed %s: %s", name, logs.Err())
-				}
-
-				logrus.Printf("Scanner for %s closed", name)
-			}
-		}()
+		c.logstreams[name].Finish()
 	}
 }
 
-func (c *LogController) stopLogStreamFromPod(pod *api_v1.Pod) {
-	logrus.Printf("Stopped streaming logs from %s", pod.ObjectMeta.Name)
+func (c *LogController) deletedPod(pod *api_v1.Pod) {
 	for _, container := range pod.Spec.Containers {
 		name := getLogstreamName(pod, container)
-		if stream, ok := c.logstream[name]; ok {
-			close(stream)
+
+		if c.logstreams[name] == nil {
+			continue
 		}
+
+		c.logstreams[name].Delete()
+		delete(c.logstreams, name)
 	}
 }
 

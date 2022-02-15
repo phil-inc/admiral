@@ -13,7 +13,7 @@ var (
 )
 
 type Config struct {
-	Fargate   bool      `json:fargate,omitempty"`
+	Fargate   bool      `json:"fargate,omitempty"`
 	Events    Events    `json:"events"`
 	Logstream Logstream `json:"logstream"`
 	Namespace string    `json:"namespace,omitempty"`
@@ -45,39 +45,21 @@ type Webhook struct {
 	Url string `json:"url"`
 }
 
-func New() (*Config, error) {
+func New(path string) (*Config, error) {
 	c := &Config{}
-	if err := c.Load(); err != nil {
+	if err := c.Load(path); err != nil {
 		return c, err
 	}
 
 	return c, nil
 }
 
-func createIfNotExist() error {
-	configFile := filepath.Join(configDir(), ConfigFileName)
-	_, err := os.Stat(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			file, err := os.Create(configFile)
-			if err != nil {
-				return err
-			}
-			file.Close()
-		} else {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Config) Load() error {
-	err := createIfNotExist()
-	if err != nil {
-		return err
+func (c *Config) Load(path string) error {
+	if path == "" {
+		path = getConfigFile()
 	}
 
-	file, err := os.Open(getConfigFile())
+	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}

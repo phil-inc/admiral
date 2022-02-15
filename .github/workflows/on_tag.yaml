@@ -8,7 +8,7 @@ on:
 jobs:
   release-image:
     name: Build & Release Container Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: Set env

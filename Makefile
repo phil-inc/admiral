@@ -1,8 +1,14 @@
 tidy:
 	go mod tidy -v
 
+# go fmt
 fmt:
-	go fmt ./...
+	gofmt -s -w .
+
+# go fmt list files affected
+fmt_list:
+	gofmt -s -l .
+
 
 test:
 	go test ./... -covermode=atomic -coverprofile=coverage.out
