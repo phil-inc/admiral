@@ -29,7 +29,7 @@ func Run(conf *config.Config, operation string) error {
 	if notInCluster != nil {
 		kubeClient, err = utils.GetClientOutOfCluster()
 	} else {
-		kubeClient, err = utils.GetClientOutOfCluster()
+		kubeClient, err = utils.GetClient()
 	}
 	if err != nil {
 		return err
