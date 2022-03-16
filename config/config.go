@@ -16,8 +16,18 @@ type Config struct {
 	Fargate   bool      `json:"fargate,omitempty"`
 	Events    Events    `json:"events"`
 	Logstream Logstream `json:"logstream"`
+	Metrics   Metrics   `json:"metrics"`
 	Namespace string    `json:"namespace,omitempty"`
 	Cluster   string    `json:"cluster,omitempty"`
+}
+
+type Metrics struct {
+	Handler MetricsHandler `json:"handler"`
+	Apps    []string       `json:"apps"`
+}
+
+type MetricsHandler struct {
+	Prometheus string `json:"prometheus"`
 }
 
 type Logstream struct {
@@ -34,10 +44,10 @@ type Loki struct {
 }
 
 type Events struct {
-	Handler Handler `json:"handler"`
+	Handler EventsHandler `json:"handler"`
 }
 
-type Handler struct {
+type EventsHandler struct {
 	Webhook Webhook `json:"webhook"`
 }
 
