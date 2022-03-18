@@ -85,13 +85,10 @@ func (m *metricstream) Delete() {
 
 func (m *metricstream) decodeMetrics(b []byte) {
 	// Label the node & pod metrics with names and namespaces
-	// This really assumes there's only 1 pod on the node (fargate use-case)
 	m.batch = &MetricBatch{
-		nodes: map[string]NodeMetrics{
-			m.pod.Spec.NodeName: NodeMetrics{},
-		},
+		nodes: map[string]NodeMetrics{},
 		pods: map[string]PodMetrics{
-			m.pod.Name: PodMetrics{
+			m.pod.Name: {
 				Namespace: m.pod.Namespace,
 			},
 		},
@@ -141,11 +138,13 @@ func (m *metricstream) decodeMetrics(b []byte) {
 
 		case seriesMatchesName(series, containerCpuUsageTotal):
 			// select the container matching the labels
-			// ns, p, c := parseLabels(series[len(containerCpuUsageTotal):])
+			_, _, c := parseLabels(series[len(containerCpuUsageTotal):])
+			m.parseContainerCpuUsage(*timestamp, value, c)
 
 		case seriesMatchesName(series, containerMemUsageTotal):
 			// select the container matching the labels
-			// ns, p, c := parseLabels(series[len(containerMemUsageTotal):])
+			_, _, c := parseLabels(series[len(containerMemUsageTotal):])
+			m.parseContainerMemUsage(*timestamp, value, c)
 
 		default:
 			continue
@@ -155,44 +154,37 @@ func (m *metricstream) decodeMetrics(b []byte) {
 
 func (m *metricstream) parseNodeCpuUsage(ts int64, value float64) {
 	n := m.batch.nodes[m.pod.Spec.NodeName]
-
 	// convert second to nanosecond
 	n.Cpu.Value = uint64(value * 1e9)
-
 	// convert millisecond to nanosecond
 	n.Cpu.Timestamp = time.Unix(0, ts*1e6)
-
 	m.batch.nodes[m.pod.Spec.NodeName] = n
 }
 
 func (m *metricstream) parsePodCpuUsage(ts int64, value float64) {
 	p := m.batch.pods[m.pod.Name]
-
 	// convert second to nanosecond
 	p.Cpu.Value = uint64(value * 1e9)
-
 	// convert millisecond to nanosecond
 	p.Cpu.Timestamp = time.Unix(0, ts*1e6)
-
 	m.batch.pods[m.pod.Name] = p
 }
 
-// func (m *metricstream) parseContainerCpuUsage(ts int64, value float64) {
-// 	// convert second to nanosecond
-// 	met.Value = uint64(value * 1e9)
-
-// 	// convert millisecond to nanosecond
-// 	met.Timestamp = time.Unix(0, ts*1e6)
-// }
+func (m *metricstream) parseContainerCpuUsage(ts int64, value float64, name string) {
+	c := m.batch.pods[m.pod.Name].Containers[name]
+	// convert second to nanosecond
+	c.Cpu.Value = uint64(value * 1e9)
+	// convert millisecond to nanosecond
+	c.Cpu.Timestamp = time.Unix(0, ts*1e6)
+	m.batch.pods[m.pod.Name].Containers[name] = c
+}
 
 func (m *metricstream) parseNodeMemUsage(ts int64, value float64) {
 	n := m.batch.nodes[m.pod.Spec.NodeName]
 	// convert millisecond to nanosecond
 	n.Memory.Timestamp = time.Unix(0, ts*1e6)
-
 	// already nanoseconds
 	n.Memory.Value = uint64(value)
-
 	m.batch.nodes[m.pod.Spec.NodeName] = n
 }
 
@@ -200,20 +192,19 @@ func (m *metricstream) parsePodMemUsage(ts int64, value float64) {
 	p := m.batch.pods[m.pod.Name]
 	// convert millisecond to nanosecond
 	p.Memory.Timestamp = time.Unix(0, ts*1e6)
-
 	// already nanoseconds
 	p.Memory.Value = uint64(value)
-
 	m.batch.pods[m.pod.Name] = p
 }
 
-// func (m *metricstream) parseContainerMemUsage(ts int64, value float64, met *Metric) {
-// 	// convert millisecond to nanosecond
-// 	met.Timestamp = time.Unix(0, ts*1e6)
-
-// 	// already nanoseconds
-// 	met.Value = uint64(value)
-// }
+func (m *metricstream) parseContainerMemUsage(ts int64, value float64, name string) {
+	c := m.batch.pods[m.pod.Name].Containers[name]
+	// convert millisecond to nanosecond
+	c.Cpu.Timestamp = time.Unix(0, ts*1e6)
+	// already nanoseconds
+	c.Cpu.Value = uint64(value)
+	m.batch.pods[m.pod.Name].Containers[name] = c
+}
 
 func seriesMatchesName(s, n []byte) bool {
 	return bytes.HasPrefix(s, n) && (s[len(n)] == '{' || len(s) == len(n))
