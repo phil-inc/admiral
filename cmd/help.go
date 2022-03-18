@@ -15,6 +15,7 @@ Find more information at https://github.com/philinc/admiral
 Commands:
 events	Stream events from a cluster to a backend
 logs	Stream logs from a cluster to a backend
+metrics	Stream metrics from the cluster to a backend
 	`,
 	}
 }

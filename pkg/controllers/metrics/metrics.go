@@ -10,6 +10,7 @@ import (
 	api_v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -19,6 +20,7 @@ type MetricsController struct {
 	config          *config.Config
 	metricstreams   map[string]*metricstream
 	handler         metrics_handlers.MetricsHandler
+	client          kubernetes.Interface
 }
 
 // Instantiates a controller for watching and handling metrics
@@ -29,6 +31,7 @@ func NewMetricsController(informerFactory informers.SharedInformerFactory, metri
 		informerFactory: informerFactory,
 		podInformer:     podInformer,
 		config:          config,
+		metricstreams:   make(map[string]*metricstream),
 		handler:         metricsHandler,
 	}
 
@@ -92,7 +95,7 @@ func (c *MetricsController) onPodDelete(obj interface{}) {
 }
 
 func (c *MetricsController) newPod(pod *api_v1.Pod) {
-	stream := NewMetricStream(pod.Name, c.handler)
+	stream := NewMetricStream(pod, c.handler)
 	_, exists := c.metricstreams[pod.Name]
 
 	if exists {
@@ -105,13 +108,11 @@ func (c *MetricsController) newPod(pod *api_v1.Pod) {
 		c.metricstreams[pod.Name] = stream
 	}
 
-	metricsConfig, err := utils.GetRestConfig()
+	r, err := utils.GetRestConfig()
 	if err != nil {
-		// This should be fatal because our controller can only get this far
-		// if it already grabbed the RestConfig() in client.go.
-		logrus.Fatalf("Failed grabbing the REST Config for metrics: %s", err)
+		logrus.Fatalf("Cannot find REST config: %s", err)
 	}
-	stream.Start(metricsConfig)
+	stream.Start(r)
 }
 
 func (c *MetricsController) finishedPod(pod *api_v1.Pod) {
