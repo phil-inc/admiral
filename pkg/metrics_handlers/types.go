@@ -1,18 +1,20 @@
-package metrics
+package metrics_handlers
 
 import "time"
 
 type MetricBatch struct {
-	nodes map[string]NodeMetrics
-	pods  map[string]PodMetrics
+	Nodes map[string]NodeMetrics
+	Pods  map[string]PodMetrics
 }
 
 type NodeMetrics struct {
+	Name   string
 	Cpu    Metric
 	Memory Metric
 }
 
 type PodMetrics struct {
+	Name       string
 	Namespace  string
 	Cpu        Metric
 	Memory     Metric
@@ -20,6 +22,7 @@ type PodMetrics struct {
 }
 
 type ContainerMetrics struct {
+	Name      string
 	Namespace string
 	Cpu       Metric
 	Memory    Metric

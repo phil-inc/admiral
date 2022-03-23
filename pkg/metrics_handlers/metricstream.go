@@ -1,4 +1,4 @@
-package metrics
+package metrics_handlers
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/phil-inc/admiral/pkg/metrics_handlers"
 	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
@@ -15,12 +14,11 @@ import (
 	metrics_client "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
-type metricstream struct {
+type Metricstream struct {
 	Finished bool
-	closed   chan struct{}
 	pod      *api_v1.Pod
-	handler  metrics_handlers.MetricsHandler
-	batch    *MetricBatch
+	handler  MetricsHandler
+	batch    MetricBatch
 }
 
 // These are labels exported on the metrics from cadvisor
@@ -36,16 +34,14 @@ var (
 	namespace              = []byte(`namespace="`)
 )
 
-func NewMetricStream(pod *api_v1.Pod, handler metrics_handlers.MetricsHandler) *metricstream {
-	return &metricstream{
+func NewMetricStream(pod *api_v1.Pod, handler MetricsHandler) *Metricstream {
+	return &Metricstream{
 		Finished: false,
-		closed:   make(chan struct{}),
 		pod:      pod,
-		handler:  handler,
 	}
 }
 
-func (m *metricstream) Start(r *rest.Config) {
+func (m *Metricstream) Start(r *rest.Config, ch chan<- MetricBatch) {
 	go func() {
 		mc, err := metrics_client.NewForConfig(r)
 		if err != nil {
@@ -56,47 +52,46 @@ func (m *metricstream) Start(r *rest.Config) {
 
 		res := mc.RESTClient().Get().RequestURI(path).Do(context.Background())
 
-		go func() {
-			<-m.closed
-			// stream.Close()
-		}()
-
-		metties, err := res.Raw()
+		metrics, err := res.Raw()
 		if err != nil {
 			logrus.Errorf("Failed raw'ing the metrics: %s", err)
 		}
 
-		logrus.Printf(string(metties))
-		// metrics := bufio.NewScanner(stream)
+		m.decodeMetrics(metrics)
 
-		// for metrics.Scan() {
-		// 	logrus.Print(metrics.Text())
-		// }
+		ch <- m.batch
 
 		m.Finish()
+
 	}()
 }
-func (m *metricstream) Finish() {
+func (m *Metricstream) Finish() {
 	m.Finished = true
 }
-func (m *metricstream) Delete() {
-	close(m.closed)
-}
 
-func (m *metricstream) decodeMetrics(b []byte) {
+func (m *Metricstream) Delete() {}
+
+func (m *Metricstream) decodeMetrics(b []byte) {
 	// Label the node & pod metrics with names and namespaces
-	m.batch = &MetricBatch{
-		nodes: map[string]NodeMetrics{},
-		pods: map[string]PodMetrics{
+	m.batch = MetricBatch{
+		Nodes: map[string]NodeMetrics{
+			m.pod.Spec.NodeName: {
+				Name: m.pod.Spec.NodeName,
+			},
+		},
+		Pods: map[string]PodMetrics{
 			m.pod.Name: {
-				Namespace: m.pod.Namespace,
+				Name:       m.pod.Name,
+				Namespace:  m.pod.Namespace,
+				Containers: make(map[string]ContainerMetrics),
 			},
 		},
 	}
 
 	// Label the container metrics with names and namespaces
 	for _, container := range m.pod.Spec.Containers {
-		m.batch.pods[m.pod.Name].Containers[container.Name] = ContainerMetrics{
+		m.batch.Pods[m.pod.Name].Containers[container.Name] = ContainerMetrics{
+			Name:      container.Name,
 			Namespace: m.pod.Namespace,
 		}
 	}
@@ -120,7 +115,6 @@ func (m *metricstream) decodeMetrics(b []byte) {
 		}
 
 		series, timestamp, value := parser.Series()
-
 		// match a timeseries to one of the exported labels
 		// if it's a match, parse its value
 		switch {
@@ -152,62 +146,62 @@ func (m *metricstream) decodeMetrics(b []byte) {
 	}
 }
 
-func (m *metricstream) parseNodeCpuUsage(ts int64, value float64) {
-	n := m.batch.nodes[m.pod.Spec.NodeName]
+func (m *Metricstream) parseNodeCpuUsage(ts int64, value float64) {
+	n := m.batch.Nodes[m.pod.Spec.NodeName]
 	// convert second to nanosecond
 	n.Cpu.Value = uint64(value * 1e9)
 	// convert millisecond to nanosecond
 	n.Cpu.Timestamp = time.Unix(0, ts*1e6)
-	m.batch.nodes[m.pod.Spec.NodeName] = n
+	m.batch.Nodes[m.pod.Spec.NodeName] = n
 }
 
-func (m *metricstream) parsePodCpuUsage(ts int64, value float64) {
-	p := m.batch.pods[m.pod.Name]
+func (m *Metricstream) parsePodCpuUsage(ts int64, value float64) {
+	p := m.batch.Pods[m.pod.Name]
 	// convert second to nanosecond
 	p.Cpu.Value = uint64(value * 1e9)
 	// convert millisecond to nanosecond
 	p.Cpu.Timestamp = time.Unix(0, ts*1e6)
-	m.batch.pods[m.pod.Name] = p
+	m.batch.Pods[m.pod.Name] = p
 }
 
-func (m *metricstream) parseContainerCpuUsage(ts int64, value float64, name string) {
-	c := m.batch.pods[m.pod.Name].Containers[name]
+func (m *Metricstream) parseContainerCpuUsage(ts int64, value float64, name string) {
+	c := m.batch.Pods[m.pod.Name].Containers[name]
 	// convert second to nanosecond
 	c.Cpu.Value = uint64(value * 1e9)
 	// convert millisecond to nanosecond
 	c.Cpu.Timestamp = time.Unix(0, ts*1e6)
-	m.batch.pods[m.pod.Name].Containers[name] = c
+	m.batch.Pods[m.pod.Name].Containers[name] = c
 }
 
-func (m *metricstream) parseNodeMemUsage(ts int64, value float64) {
-	n := m.batch.nodes[m.pod.Spec.NodeName]
+func (m *Metricstream) parseNodeMemUsage(ts int64, value float64) {
+	n := m.batch.Nodes[m.pod.Spec.NodeName]
 	// convert millisecond to nanosecond
 	n.Memory.Timestamp = time.Unix(0, ts*1e6)
 	// already nanoseconds
 	n.Memory.Value = uint64(value)
-	m.batch.nodes[m.pod.Spec.NodeName] = n
+	m.batch.Nodes[m.pod.Spec.NodeName] = n
 }
 
-func (m *metricstream) parsePodMemUsage(ts int64, value float64) {
-	p := m.batch.pods[m.pod.Name]
+func (m *Metricstream) parsePodMemUsage(ts int64, value float64) {
+	p := m.batch.Pods[m.pod.Name]
 	// convert millisecond to nanosecond
 	p.Memory.Timestamp = time.Unix(0, ts*1e6)
 	// already nanoseconds
 	p.Memory.Value = uint64(value)
-	m.batch.pods[m.pod.Name] = p
+	m.batch.Pods[m.pod.Name] = p
 }
 
-func (m *metricstream) parseContainerMemUsage(ts int64, value float64, name string) {
-	c := m.batch.pods[m.pod.Name].Containers[name]
+func (m *Metricstream) parseContainerMemUsage(ts int64, value float64, name string) {
+	c := m.batch.Pods[m.pod.Name].Containers[name]
 	// convert millisecond to nanosecond
-	c.Cpu.Timestamp = time.Unix(0, ts*1e6)
+	c.Memory.Timestamp = time.Unix(0, ts*1e6)
 	// already nanoseconds
-	c.Cpu.Value = uint64(value)
-	m.batch.pods[m.pod.Name].Containers[name] = c
+	c.Memory.Value = uint64(value)
+	m.batch.Pods[m.pod.Name].Containers[name] = c
 }
 
-func seriesMatchesName(s, n []byte) bool {
-	return bytes.HasPrefix(s, n) && (s[len(n)] == '{' || len(s) == len(n))
+func seriesMatchesName(s []byte, n []byte) bool {
+	return bytes.HasPrefix(s, n) && (len(s) == len(n) || s[len(n)] == '{')
 }
 
 func parseLabels(labels []byte) (ns string, pod string, container string) {

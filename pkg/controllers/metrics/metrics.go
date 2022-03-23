@@ -18,9 +18,10 @@ type MetricsController struct {
 	informerFactory informers.SharedInformerFactory
 	podInformer     coreinformers.PodInformer
 	config          *config.Config
-	metricstreams   map[string]*metricstream
+	metricstreams   map[string]*metrics_handlers.Metricstream
 	handler         metrics_handlers.MetricsHandler
 	client          kubernetes.Interface
+	metricsCh       chan (metrics_handlers.MetricBatch)
 }
 
 // Instantiates a controller for watching and handling metrics
@@ -31,8 +32,9 @@ func NewMetricsController(informerFactory informers.SharedInformerFactory, metri
 		informerFactory: informerFactory,
 		podInformer:     podInformer,
 		config:          config,
-		metricstreams:   make(map[string]*metricstream),
+		metricstreams:   make(map[string]*metrics_handlers.Metricstream),
 		handler:         metricsHandler,
+		metricsCh:       make(chan metrics_handlers.MetricBatch),
 	}
 
 	podInformer.Informer().AddEventHandler(
@@ -53,6 +55,7 @@ func (c *MetricsController) Watch() chan struct{} {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+
 	return metricsStop
 }
 
@@ -61,6 +64,8 @@ func (c *MetricsController) Run(stopCh chan struct{}) error {
 	if !cache.WaitForCacheSync(stopCh, c.podInformer.Informer().HasSynced) {
 		return fmt.Errorf("failed to sync")
 	}
+
+	go c.handler.Handle(c.metricsCh)
 	return nil
 }
 
@@ -95,7 +100,7 @@ func (c *MetricsController) onPodDelete(obj interface{}) {
 }
 
 func (c *MetricsController) newPod(pod *api_v1.Pod) {
-	stream := NewMetricStream(pod, c.handler)
+	stream := metrics_handlers.NewMetricStream(pod, c.handler)
 	_, exists := c.metricstreams[pod.Name]
 
 	if exists {
@@ -112,7 +117,7 @@ func (c *MetricsController) newPod(pod *api_v1.Pod) {
 	if err != nil {
 		logrus.Fatalf("Cannot find REST config: %s", err)
 	}
-	stream.Start(r)
+	stream.Start(r, c.metricsCh)
 }
 
 func (c *MetricsController) finishedPod(pod *api_v1.Pod) {
