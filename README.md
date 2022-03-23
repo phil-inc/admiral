@@ -18,6 +18,8 @@ routine Kubernetes operations.
     - NodeNotReady (unscheduled node failure)
     - Unhealthy (unscheduled pod failure)
 - Send messages to a webhook
+- Stream logs to a specified logstore
+- Scrape & expose metrics endpoints
 
 ### Desired features
 
@@ -53,14 +55,18 @@ logstream:
         loki:
             url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
     apps: # The label "app" on a pod
-        - name: my-app-deployment
+      - name: my-app-deployment
+metrics:
+  handler:
+    prometheus: true
+  apps:
+    - capi
 ```
 
-Based on the config, the application instantiates a handler. For now, the only
-available handler is webhook. It then instantiates a controller watching
-the Kubernetes API server for a variety of defined events. Each controller adds
-their events to a queue, which is then popped by the handler and POSTed to the
-webhook.
+**NOTE:** Currently this only supports *one* execution mode at a time (`events`,
+`logstream`, or `metrics`). You can use this whole configuration as an example,
+but you should only run `admiral` with 1 command reading from 1 section of
+the configuration at a time.
 
 ## Building
 
