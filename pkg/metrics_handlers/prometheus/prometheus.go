@@ -21,7 +21,7 @@ func (p *Prometheus) Init(c *config.Config) error {
 // Handle transforms & exposes the metrics for Prometheus scraping
 func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 	g := make(map[string]prometheus.Gauge)
-
+	r := prometheus.NewRegistry()
 	go func() {
 		// This infinite loop breaks when the channel for passing in metrics closes
 		// The receiver <-metrics also blocks until it is passed metrics
@@ -38,22 +38,24 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					g[cpuGuage] = promauto.NewGauge(prometheus.GaugeOpts{
 						Name: "node_cpu",
 						ConstLabels: prometheus.Labels{
-							"node": n.Name,
+							"name": n.Name,
 						},
 					})
 				}
 				g[cpuGuage].Set(float64(n.Cpu.Value))
+				r.MustRegister(g[cpuGuage])
 
 				memGuage := fmt.Sprintf("%s_mem", n.Name)
 				if _, exists := g[memGuage]; !exists {
 					g[memGuage] = promauto.NewGauge(prometheus.GaugeOpts{
-						Name: "node_mem",
+						Name: "node_memory",
 						ConstLabels: prometheus.Labels{
-							"node": n.Name,
+							"name": n.Name,
 						},
 					})
 				}
 				g[memGuage].Set(float64(n.Memory.Value))
+				r.MustRegister(g[memGuage])
 			}
 
 			for _, po := range m.Pods {
@@ -68,11 +70,12 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[cpuGuage].Set(float64(po.Cpu.Value))
+				r.MustRegister(g[cpuGuage])
 
 				memGuage := fmt.Sprintf("%s_mem", po.Name)
 				if _, exists := g[memGuage]; !exists {
 					g[memGuage] = promauto.NewGauge(prometheus.GaugeOpts{
-						Name: "pod_mem",
+						Name: "pod_memory",
 						ConstLabels: prometheus.Labels{
 							"name":      po.Name,
 							"namespace": po.Namespace,
@@ -80,6 +83,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[memGuage].Set(float64(po.Memory.Value))
+				r.MustRegister(g[memGuage])
 
 				for _, c := range po.Containers {
 					cpuGuage := fmt.Sprintf("%s_%s_cpu", c.Name, po.Name)
@@ -94,6 +98,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 						})
 					}
 					g[cpuGuage].Set(float64(c.Cpu.Value))
+					r.MustRegister(g[cpuGuage])
 
 					memGuage := fmt.Sprintf("%s_%s_mem", c.Name, po.Name)
 					if _, exists := g[memGuage]; !exists {
@@ -101,16 +106,18 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 							Name: "container_memory",
 							ConstLabels: prometheus.Labels{
 								"name":      c.Name,
+								"pod":       po.Name,
 								"namespace": c.Namespace,
 							},
 						})
 					}
 					g[memGuage].Set(float64(c.Memory.Value))
+					r.MustRegister(g[memGuage])
 				}
 			}
 		}
 	}()
 
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
 	http.ListenAndServe(":2112", nil)
 }
