@@ -30,4 +30,5 @@ it will initialize the controller lifecycle, which will `Watch` Kubernetes
 for specified resources. In the actual controller code, we will define
 event handlers that respond to the watched Kubernetes activity.
 
+[add a command]: ./docs/add-a-command.md
 [pkg/client/client.go]: ./pkg/client/client.go
