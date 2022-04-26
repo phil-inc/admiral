@@ -1,3 +1,5 @@
+![Alt text](Admiral.jpeg?raw=true "Title")
+
 # Admiral
 ![Builds Actions Status](https://github.com/phil-inc/admiral/workflows/Builds/badge.svg?branch=master)
 ![Releases Actions Status](https://github.com/phil-inc/admiral/workflows/Releases/badge.svg)
