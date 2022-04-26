@@ -1,8 +1,9 @@
 # Admiral
-![Alt text](Admiral.jpeg?raw=true "Title")
 ![Builds Actions Status](https://github.com/phil-inc/admiral/workflows/Builds/badge.svg?branch=master)
 ![Releases Actions Status](https://github.com/phil-inc/admiral/workflows/Releases/badge.svg)
 ![Tags Actions Status](https://github.com/phil-inc/admiral/workflows/Tags/badge.svg)
+
+![Alt text](Admiral.jpeg?raw=true "Title")
 
 Admiral is a lightweight service inspired by Kubewatch. It evolved out of a need
 for extra observability of AWS EKS Fargate. Lack of control & vision of the
