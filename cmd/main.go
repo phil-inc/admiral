@@ -20,6 +20,7 @@ func main() {
 	rootCmd.AddCommand(
 		NewLogsCmd(),
 		NewEventsCmd(),
+		NewPerformanceCmd(),
 	)
 	rootCmd.PersistentFlags().StringVarP(&configPath, "file", "f", "", "specify a path to a YAML file")
 
