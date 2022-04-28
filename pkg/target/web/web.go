@@ -45,19 +45,17 @@ func (w *Web) Test(appLabel string) error {
 	for _, test := range appTests {
 		testId := w.runTest(test)
 		testIds = append(testIds, testId)
-		logrus.Printf("Received web performance test id for %s: %s", appLabel, testId)
+		logrus.Printf("[performance][%s] Ran Test: url=%s | testId=%s", appLabel, test.Url, testId)
 	}
-
-	logrus.Printf("[performance] Received test IDs for %s: %s", appLabel, testIds)
 
 	for _, testId := range testIds {
 		statusCh := make(chan struct{})
-		go w.checkStatus(statusCh, testId)
+		go w.checkStatus(statusCh, testId, appLabel)
 
 		<-statusCh
 
 		out, _ := json.Marshal(statusCh)
-		logrus.Printf("[performance] Received test results for %s: %s", appLabel, string(out))
+		logrus.Printf("[performance][%s] Received Test Result: testId=%s | result=%s", appLabel, testId,  string(out))
 	}
 
 	return nil
@@ -86,7 +84,7 @@ func (w *Web) runTest(test config.Test) string {
 	return responseData.data.testId
 }
 
-func (w *Web) checkStatus(statusCh chan struct{}, testId string) {
+func (w *Web) checkStatus(statusCh chan struct{}, testId string, appLabel string) {
 	for {
 		url := fmt.Sprintf("%s?test=%s", checkWebPageTestUrl, testId)
 		resp, err := w.http.Get(url)
@@ -105,15 +103,10 @@ func (w *Web) checkStatus(statusCh chan struct{}, testId string) {
 		}
 		json.Unmarshal(body, &responseData)
 
-		// TODO: Maybe wrap the reponse into a success or fail structs?
+		// TODO: Should we make a distinction between failed and successful test runs?
 		switch {
-		case responseData.statusCode == 200:
+		case responseData.statusCode >= 200:
 			statusCh <- responseData.data
-			break
-		case responseData.statusCode >= 400:
-			log.Fatal(fmt.Errorf("Unable to get results for test: %s", testId))
-			var empty struct{}
-			statusCh <- empty
 			break
 		}
 	}
