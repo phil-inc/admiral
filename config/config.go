@@ -40,7 +40,12 @@ type Target struct {
 }
 
 type Web struct {
-	Url string `json:"url"`
+	Tests map[string][]Test `json:"tests"`
+}
+
+type Test struct {
+	Url    string `json:"url"`
+	Mobile int    `json:"mobile"`
 }
 
 type Loki struct {

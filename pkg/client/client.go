@@ -98,7 +98,7 @@ func ParseLogHandler(conf *config.Config) logstores.Logstore {
 func ParsePerformanceHandler(conf *config.Config) target.Target {
 	var target target.Target
 	switch {
-	case len(conf.Performance.Target.Web.Url) > 0:
+	case len(conf.Performance.Target.Web.Tests) > 0:
 		target = new(web.Web)
 	}
 
