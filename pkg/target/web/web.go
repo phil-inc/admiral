@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/target"
@@ -43,26 +44,31 @@ func (w *Web) Test(appLabel string) error {
 
 	testIds := []string{}
 	for _, test := range appTests {
-		testId := w.runTest(test)
+		testId := w.runTest(appLabel, test)
 		testIds = append(testIds, testId)
-		logrus.Printf("[performance][%s] Ran Test: url=%s | testId=%s", appLabel, test.Url, testId)
+		logrus.Printf("[performance][%s] Ran webpagetest: url=%s | testId=%s", appLabel, test.Url, testId)
 	}
 
 	for _, testId := range testIds {
 		statusCh := make(chan struct{})
-		go w.checkStatus(statusCh, testId, appLabel)
+		go w.checkStatus(statusCh, appLabel, testId)
 
-		<-statusCh
+		go func(testId string) {
+			<-statusCh
 
-		out, _ := json.Marshal(statusCh)
-		logrus.Printf("[performance][%s] Received Test Result: testId=%s | result=%s", appLabel, testId,  string(out))
+			output, err := json.Marshal(statusCh)
+			if err != nil {
+				logrus.Errorf("[performance][%s] Error marshaling status check: testId=%s | error=%s", appLabel, testId, err)
+			}
+			logrus.Printf("[performance][%s] received webpagetest result: testId=%s | result=%s", appLabel, testId, string(output))
+		}(testId)
 	}
 
 	return nil
 }
 
-func (w *Web) runTest(test config.Test) string {
-	url := fmt.Sprintf("%s?k=%s&url=%s&mobile=%d&f=json", runWebPageTestUrl, w.apiKey, test.Url, test.Mobile)
+func (w *Web) runTest(appLabel string, test config.Test) string {
+	url := fmt.Sprintf("%s?k=%s&url=%s&mobile=%d&runs=%d&f=json", runWebPageTestUrl, w.apiKey, test.Url, test.Mobile, test.Runs)
 	resp, err := w.http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +76,7 @@ func (w *Web) runTest(test config.Test) string {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Errorf("[performance][%s] Error reading body from webpagetest result: url=%s | error=%s", appLabel, test.Url, err)
 	}
 
 	// TODO Need to validate the actual reponse body.
@@ -84,7 +90,7 @@ func (w *Web) runTest(test config.Test) string {
 	return responseData.data.testId
 }
 
-func (w *Web) checkStatus(statusCh chan struct{}, testId string, appLabel string) {
+func (w *Web) checkStatus(statusCh chan struct{}, appLabel string, testId string) {
 	for {
 		url := fmt.Sprintf("%s?test=%s", checkWebPageTestUrl, testId)
 		resp, err := w.http.Get(url)
@@ -94,7 +100,7 @@ func (w *Web) checkStatus(statusCh chan struct{}, testId string, appLabel string
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Errorf("[performance][%s] Error reading body from webpagetest result: testId=%s | error=%s", appLabel, testId, err)
 		}
 
 		var responseData struct {
@@ -107,7 +113,9 @@ func (w *Web) checkStatus(statusCh chan struct{}, testId string, appLabel string
 		switch {
 		case responseData.statusCode >= 200:
 			statusCh <- responseData.data
-			break
+			return
 		}
+
+		time.Sleep(3000 * time.Second)
 	}
 }

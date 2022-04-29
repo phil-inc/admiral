@@ -46,6 +46,7 @@ type Web struct {
 type Test struct {
 	Url    string `json:"url"`
 	Mobile int    `json:"mobile"`
+	Runs   int    `json:"runs"`
 }
 
 type Loki struct {
