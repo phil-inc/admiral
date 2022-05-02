@@ -114,16 +114,16 @@ func (w *Web) checkStatus(statusCh chan struct{}, appLabel string, testId string
 			}
 			json.Unmarshal(body, &responseData)
 
-			status := responseData.statusCode 
-			switch {
-			case status == 200:
+			switch responseData.statusCode {
+			case 200:
 				statusCh <- responseData.data
 				return
-			case status == 102 || status == 400 || status == 401:
+			case 102, 400, 401:
 				retryCount++
 				time.Sleep(time.Duration(retryCount) * time.Second)
 				break
 			}
 		}
     }
+	statusCh <- responseData.data
 }
