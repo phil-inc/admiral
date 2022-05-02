@@ -75,7 +75,7 @@ func (c *EventController) onEventAdd(obj interface{}) {
 
 	if serverStartTime.Before(e.ObjectMeta.CreationTimestamp.Time) {
 		switch e.Reason {
-		case "NodeNotReady":
+		case "NodeNotReady", "NodeReady":
 			c.handler.Handle(c.newSendableEvent(e))
 		}
 	}
