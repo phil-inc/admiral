@@ -121,7 +121,6 @@ func (w *Web) checkStatus(statusCh chan struct{}, appLabel string, testId string
 			case 102, 400, 401:
 				retryCount++
 				time.Sleep(time.Duration(retryCount) * time.Second)
-				break
 			}
 		}
     }
