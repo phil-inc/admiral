@@ -26,12 +26,11 @@ type PerformanceController struct {
 // Instantiates a controller for watching and handling performance testing
 func NewPerformanceController(informerFactory informers.SharedInformerFactory, clientset kubernetes.Interface, config *config.Config, t target.Target) *PerformanceController {
 	podInformer := informerFactory.Core().V1().Pods()
-	httpClient := http.Client{}
 
 	apiKeys := map[string]string{
 		"web": os.Getenv("WEB_PERFORMANCE_API_KEY"),
 	}
-
+	var httpClient http.Client
 	targetParams := target.TargetParams{
 		HttpClient: httpClient,
 		ApiKeys:    apiKeys,
@@ -74,11 +73,17 @@ func (c *PerformanceController) Run(stopCh chan struct{}) error {
 }
 
 func (c *PerformanceController) onPodUpdate(old, new interface{}) {
-	pod := new.(*api_v1.Pod)
-	logrus.Printf("[performance] Pod Updated: %s", pod.ObjectMeta.Labels["app"])
-
-	if c.podIsInConfig(pod) && pod.Status.Phase == api_v1.PodRunning {
-		c.TestPod(pod)
+	newPod := new.(*api_v1.Pod)
+	oldPod := old.(*api_v1.Pod)
+	if c.podIsInConfig(newPod) {
+		switch newPod.Status.Phase {
+		case api_v1.PodRunning:
+			fmt.Println("NEW: PodRunning")
+			fmt.Println("OLD:", oldPod.Status.Phase)
+			if oldPod.Status.Phase != api_v1.PodRunning {
+				c.TestPod(newPod)
+			}
+		}
 	}
 }
 

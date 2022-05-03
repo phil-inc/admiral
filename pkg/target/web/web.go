@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -23,10 +24,12 @@ type Web struct {
 }
 
 type QueueResponse struct {
-	data struct {
-		testId string
-	}
-	statusCode int
+	Data       QueueData
+	StatusCode int
+}
+
+type QueueData struct {
+	TestId string
 }
 
 type ResultsResponse struct {
@@ -80,7 +83,6 @@ type TestViewResult struct {
 func (w *Web) Init(c *config.Config) error {
 	tests := c.Performance.Target.Web.Tests
 	w.tests = tests
-
 	return nil
 }
 
@@ -94,8 +96,11 @@ func (w *Web) InitParams(targetParams target.TargetParams) error {
 
 // Test runs web performance against a list of urls.
 func (w *Web) Test(appLabel string) error {
-	appTests := w.tests[appLabel]
 	logrus.Printf("[performance][%s] Initiated web performance test.", appLabel)
+
+	appTests := w.tests[appLabel]
+
+	fmt.Println("AppTests.", len(appTests))
 
 	// Run web performance tests.
 	testIds := []string{}
@@ -136,7 +141,7 @@ func (w *Web) runTestWithRetries(appLabel string, test config.Test) (testId stri
 			time.Sleep(time.Duration(retry) * time.Second)
 		}
 
-		respObj := w.constructQueueResponse(appLabel, resp)
+		respObj := w.constructQueueResponse(appLabel, resp.Body)
 		testId, err = w.handleQueueResponse(appLabel, respObj)
 		if err != nil {
 			retry++
@@ -158,23 +163,33 @@ func (w *Web) queueTest(appLabel string, test config.Test) (resp *http.Response,
 	return resp, err
 }
 
-func (w *Web) constructQueueResponse(appLabel string, resp *http.Response) (respObj QueueResponse) {
-	body, err := ioutil.ReadAll(resp.Body)
+func (w *Web) constructQueueResponse(appLabel string, responseBody io.ReadCloser) (respObj QueueResponse) {
+	defer responseBody.Close()
+	body, err := ioutil.ReadAll(responseBody)
+	fmt.Println("resp body", string(body))
+
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error converting to queue response | error=%s", appLabel, err)
+		logrus.Errorf("[performance][%s] Error reading queue response body | error=%s", appLabel, err)
 	}
-	json.Unmarshal(body, &respObj)
+
+	err = json.Unmarshal(body, &respObj)
+	if err != nil {
+		logrus.Errorf("[performance][%s] Error unmarshalling queue response body | error=%s", appLabel, err)
+	}
+
+	fmt.Println("1. respObj", respObj)
 
 	return respObj
 }
 
 func (w *Web) handleQueueResponse(appLabel string, respObj QueueResponse) (testId string, err error) {
-	switch respObj.statusCode {
+	fmt.Println("2. respObj", respObj)
+	switch respObj.StatusCode {
 	case 200:
-		testId = respObj.data.testId
+		testId = respObj.Data.TestId
 		logrus.Printf("[performance][%s] Successfully queued test: | testId=%s", appLabel, testId)
 	default:
-		err = fmt.Errorf("[performance][%s] Failed to get test ID:  statusCode=%d", appLabel, respObj.statusCode)
+		err = fmt.Errorf("[performance][%s] Failed to get test ID:  statusCode=%d", appLabel, respObj.StatusCode)
 	}
 	return testId, err
 }
