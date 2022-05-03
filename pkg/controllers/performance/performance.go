@@ -76,6 +76,7 @@ func (c *PerformanceController) Run(stopCh chan struct{}) error {
 
 func (c *PerformanceController) onPodAdd(obj interface{}) {
 	pod := obj.(*api_v1.Pod)
+	logrus.Printf("[performance] Pod Added: %s", pod.ObjectMeta.Labels["app"])
 
 	if c.podIsInConfig(pod) && pod.Status.Phase == api_v1.PodRunning {
 		c.TestPod(pod)
@@ -84,6 +85,7 @@ func (c *PerformanceController) onPodAdd(obj interface{}) {
 
 func (c *PerformanceController) onPodUpdate(old, new interface{}) {
 	pod := new.(*api_v1.Pod)
+	logrus.Printf("[performance] Pod Updated: %s", pod.ObjectMeta.Labels["app"])
 
 	if c.podIsInConfig(pod) && pod.Status.Phase == api_v1.PodRunning {
 		c.TestPod(pod)
