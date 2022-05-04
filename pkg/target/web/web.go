@@ -29,7 +29,7 @@ type QueueResponse struct {
 }
 
 type QueueData struct {
-	TestId string
+	TestID string
 }
 
 type ResultsResponse struct {
@@ -39,7 +39,7 @@ type ResultsResponse struct {
 }
 
 type ResultData struct {
-	Id           string
+	ID           string
 	Url          string
 	Connectivity string
 	Location     string
@@ -108,7 +108,7 @@ func (w *Web) Test(appLabel string) error {
 	for i, test := range appTests {
 		testId, err := w.runTestWithRetries(appLabel, test)
 		if err != nil {
-			logrus.Errorf("[performance][%s] Skipping test: index=%d | testUrl=%s.", appLabel, i, test.Url)
+			logrus.Errorf("[performance][%s] Skipping test. index=%d | testUrl=%s.", appLabel, i, test.Url)
 			continue
 		}
 		testIds = append(testIds, testId)
@@ -125,12 +125,20 @@ func (w *Web) Test(appLabel string) error {
 			result := <-resultsCh
 			resultOutput, err := json.Marshal(result)
 			if err != nil {
-				logrus.Errorf("[performance][%s] Error marshaling test result: testId=%s | error=%s", appLabel, testId, err)
+				logrus.Errorf("[performance][%s] Error marshaling test result. testId=%s | error=%s", appLabel, testId, err)
 			}
-			logrus.Printf("[performance][%s] Successfully received test result: testId=%s | result=%s", appLabel, testId, string(resultOutput))
+
+			var resultData ResultData
+			err = json.Unmarshal(resultOutput, &resultData)
+			if err != nil {
+				logrus.Errorf("[performance][%s] Error unmarshaling test result. testId=%s | error=%s", appLabel, testId, err)
+			}
+
+			if resultData.ID != "" {
+				logrus.Printf("[performance][%s] Received test result. testId=%s | result=%s", appLabel, testId, string(resultOutput))
+			}
 		}(testId)
 	}
-
 	return nil
 }
 
@@ -161,7 +169,7 @@ func (w *Web) queueTest(appLabel string, test config.Test) (resp *http.Response,
 	url := fmt.Sprintf("%s?k=%s&url=%s&mobile=%d&runs=%d&f=json", RUN_WEB_PAGE_TEST_URL, w.apiKey, test.Url, test.Mobile, test.Runs)
 	resp, err = w.http.Get(url)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error queuing test: url=%s | error=%s", appLabel, url, err)
+		logrus.Errorf("[performance][%s] Call failed to queue test. method=GET | url=%s | error=%s", appLabel, url, err)
 	}
 	return
 }
@@ -170,12 +178,12 @@ func (w *Web) constructQueueResponse(appLabel string, responseBody io.ReadCloser
 	defer responseBody.Close()
 	body, err := ioutil.ReadAll(responseBody)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error reading queue response body | error=%s", appLabel, err)
+		logrus.Errorf("[performance][%s] Error reading queue response body. error=%s", appLabel, err)
 	}
 
 	err = json.Unmarshal(body, &respObj)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error unmarshalling queue response body | error=%s", appLabel, err)
+		logrus.Errorf("[performance][%s] Error unmarshalling queue response body. error=%s", appLabel, err)
 	}
 	return
 }
@@ -183,10 +191,10 @@ func (w *Web) constructQueueResponse(appLabel string, responseBody io.ReadCloser
 func (w *Web) handleQueueResponse(appLabel string, respObj QueueResponse) (testId string, err error) {
 	switch respObj.StatusCode {
 	case 200:
-		testId = respObj.Data.TestId
-		logrus.Printf("[performance][%s] Successfully queued test: testId=%s", appLabel, testId)
+		testId = respObj.Data.TestID
+		logrus.Printf("[performance][%s] Queued test. testId=%s", appLabel, testId)
 	default:
-		err = fmt.Errorf("Could not queue test: statusCode=%d", respObj.StatusCode)
+		err = fmt.Errorf("Could not queue test. statusCode=%d", respObj.StatusCode)
 		logrus.Errorf("[performance][%s] %s", appLabel, err)
 	}
 	return
@@ -204,7 +212,7 @@ func (w *Web) getResultsWithRetries(resultsCh chan ResultData, appLabel string, 
 		}
 
 		respObj := w.constructToResultsResponse(appLabel, resp.Body)
-		result, err = w.handleResultsResponse(appLabel, respObj)
+		result, err = w.handleResultsResponse(appLabel, testId, respObj)
 
 		if result == (ResultData{}) {
 			if err != nil {
@@ -222,7 +230,7 @@ func (w *Web) checkStatus(appLabel string, testId string) (resp *http.Response, 
 	url := fmt.Sprintf("%s?test=%s", CHECK_WEB_PAGE_TEST_URL, testId)
 	resp, err = w.http.Get(url)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error queuing webpagetest: url=%s | error=%s", appLabel, url, err)
+		logrus.Errorf("[performance][%s] Call failed to check test status. method=GET | url=%s | error=%s", appLabel, url, err)
 	}
 	return
 }
@@ -231,25 +239,25 @@ func (w *Web) constructToResultsResponse(appLabel string, responseBody io.ReadCl
 	defer responseBody.Close()
 	body, err := ioutil.ReadAll(responseBody)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error converting to results response | error=%s", appLabel, err)
+		logrus.Errorf("[performance][%s] Error converting to results response. error=%s", appLabel, err)
 	}
 
 	err = json.Unmarshal(body, &respObj)
 	if err != nil {
-		logrus.Errorf("[performance][%s] Error unmarshalling queue response body | error=%s", appLabel, err)
+		logrus.Errorf("[performance][%s] Error unmarshalling queue response body. error=%s", appLabel, err)
 	}
 	return
 }
 
-func (w *Web) handleResultsResponse(appLabel string, respObj ResultsResponse) (result ResultData, err error) {
+func (w *Web) handleResultsResponse(appLabel, testId string, respObj ResultsResponse) (result ResultData, err error) {
 	switch respObj.StatusCode {
 	case 100, 101:
-		logrus.Printf("[performance][%s] Web performance test is still in progress: testId=%s.", appLabel, respObj.Data.Id)
+		logrus.Printf("[performance][%s] Test still in progress. testId=%s", appLabel, testId)
 		time.Sleep(5 * time.Second)
 	case 200:
 		result = respObj.Data
 	default:
-		err = fmt.Errorf("Could not get test result: statusCode=%d", respObj.StatusCode)
+		err = fmt.Errorf("Could not get test result. testId=%s | statusCode=%d", testId, respObj.StatusCode)
 		logrus.Errorf("[performance][%s] %s", appLabel, err)
 	}
 	return
