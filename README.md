@@ -53,7 +53,7 @@ logstream:
         loki:
             url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
     apps: # The label "app" on a pod
-        - name: my-app-deployment
+        - my-app-deployment
 ```
 
 Based on the config, the application instantiates a handler. For now, the only

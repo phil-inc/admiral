@@ -11,10 +11,13 @@ import (
 	"github.com/phil-inc/admiral/pkg/controllers"
 	"github.com/phil-inc/admiral/pkg/controllers/events"
 	"github.com/phil-inc/admiral/pkg/controllers/logs"
+	"github.com/phil-inc/admiral/pkg/controllers/performance"
 	"github.com/phil-inc/admiral/pkg/handlers"
 	"github.com/phil-inc/admiral/pkg/handlers/webhook"
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/phil-inc/admiral/pkg/logstores/loki"
+	"github.com/phil-inc/admiral/pkg/target"
+	"github.com/phil-inc/admiral/pkg/target/web"
 	"github.com/phil-inc/admiral/pkg/utils"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -45,6 +48,9 @@ func Run(conf *config.Config, operation string) error {
 	case "events":
 		var eventHandler = ParseEventHandler(conf)
 		ctrl = events.NewEventController(informerFactory, eventHandler, conf, kubeClient)
+	case "performance":
+		var target = ParsePerformanceHandler(conf)
+		ctrl = performance.NewPerformanceController(informerFactory, kubeClient, conf, target)
 	}
 
 	ctrlStop := ctrl.Watch()
@@ -86,4 +92,18 @@ func ParseLogHandler(conf *config.Config) logstores.Logstore {
 		log.Fatal(err)
 	}
 	return logHandler
+}
+
+// ParsePerformanceHandler returns the first result handler it finds (top to bottom)
+func ParsePerformanceHandler(conf *config.Config) target.Target {
+	var target target.Target
+	switch {
+	case len(conf.Performance.Target.Web.Tests) > 0:
+		target = new(web.Web)
+	}
+
+	if err := target.Init(conf); err != nil {
+		log.Fatal(err)
+	}
+	return target
 }
