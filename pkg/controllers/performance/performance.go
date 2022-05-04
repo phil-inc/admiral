@@ -78,9 +78,8 @@ func (c *PerformanceController) onPodUpdate(old, new interface{}) {
 	if c.podIsInConfig(newPod) {
 		switch newPod.Status.Phase {
 		case api_v1.PodRunning:
-			fmt.Println("NEW: PodRunning")
-			fmt.Println("OLD:", oldPod.Status.Phase)
 			if oldPod.Status.Phase != api_v1.PodRunning {
+				logrus.Printf("[performance][%s] Pod updated.", newPod.ObjectMeta.Labels["app"])
 				c.TestPod(newPod)
 			}
 		}
