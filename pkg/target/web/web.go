@@ -114,7 +114,7 @@ func (w *Web) Test(appLabel string) error {
 		testIds = append(testIds, testId)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	// Get result for each testId.
 	for _, testId := range testIds {
@@ -253,7 +253,7 @@ func (w *Web) handleResultsResponse(appLabel, testId string, respObj ResultsResp
 	switch respObj.StatusCode {
 	case 100, 101:
 		logrus.Printf("[performance][%s] Test still in progress. testId=%s", appLabel, testId)
-		time.Sleep(5 * time.Second)
+		time.Sleep(60 * time.Second)
 	case 200:
 		result = respObj.Data
 	default:
