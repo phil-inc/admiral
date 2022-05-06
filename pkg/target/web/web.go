@@ -114,7 +114,7 @@ func (w *Web) Test(appLabel string) error {
 		testIds = append(testIds, testId)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	// Get result for each testId.
 	for _, testId := range testIds {
@@ -135,7 +135,7 @@ func (w *Web) Test(appLabel string) error {
 			}
 
 			if resultData.ID != "" {
-				logrus.Printf("[performance][%s] Received test result. testId=%s | result=%s", appLabel, testId, string(resultOutput))
+				logrus.Printf("[performance][%s] Received test result. testId=%s | result=[%s]", appLabel, testId, w.formatResultsResponse(resultData))
 			}
 		}(testId)
 	}
@@ -253,7 +253,7 @@ func (w *Web) handleResultsResponse(appLabel, testId string, respObj ResultsResp
 	switch respObj.StatusCode {
 	case 100, 101:
 		logrus.Printf("[performance][%s] Test still in progress. testId=%s", appLabel, testId)
-		time.Sleep(5 * time.Second)
+		time.Sleep(60 * time.Second)
 	case 200:
 		result = respObj.Data
 	default:
@@ -261,4 +261,51 @@ func (w *Web) handleResultsResponse(appLabel, testId string, respObj ResultsResp
 		logrus.Errorf("[performance][%s] %s", appLabel, err)
 	}
 	return
+}
+
+func (w *Web) formatResultsResponse(resultData ResultData) string {
+	url := fmt.Sprintf("url=%s", resultData.Url)
+	mobile := fmt.Sprintf("| mobile=%d", resultData.Mobile)
+	connectivity := fmt.Sprintf("| connectivity=%s", resultData.Connectivity)
+	location := fmt.Sprintf("| location=%s", resultData.Location)
+	loadTime := fmt.Sprintf("| loadTime=%.1f(F),%.1f(R)", resultData.Average.FirstView.LoadTime, resultData.Average.RepeatView.LoadTime)
+	visualComplete := fmt.Sprintf("| visualComplete=%.1f(F),%.1f(R)", resultData.Average.FirstView.VisualComplete, resultData.Average.RepeatView.VisualComplete)
+	run := fmt.Sprintf("| run=%d(F),%d(R)", resultData.Average.FirstView.Run, resultData.Average.RepeatView.Run)
+	general := fmt.Sprintf("%s %s %s %s %s %s %s", url, mobile, connectivity, location, loadTime, visualComplete, run)
+
+	bytesOut := fmt.Sprintf("| bytesOut=%.1f(F),%.1f(R)", resultData.Average.FirstView.BytesOut, resultData.Average.RepeatView.BytesOut)
+	bytesIn := fmt.Sprintf("| bytesIn=%.1f(F),%.1f(R)", resultData.Average.FirstView.BytesIn, resultData.Average.RepeatView.BytesIn)
+	bytesInfo := fmt.Sprintf("%s %s", bytesOut, bytesIn)
+
+	domInteractive := fmt.Sprintf("| domInteractive=%.1f(F),%.1f(R)", resultData.Average.FirstView.DomInteractive, resultData.Average.RepeatView.DomInteractive)
+	domElements := fmt.Sprintf("| domElements=%d(F),%d(R)", resultData.Average.FirstView.DomElements, resultData.Average.RepeatView.DomElements)
+	domInfo := fmt.Sprintf("%s %s", domElements, domInteractive)
+
+	firstPaint := fmt.Sprintf("| firstPaint=%.1f(F),%.1f(R)", resultData.Average.FirstView.FirstPaint, resultData.Average.RepeatView.FirstPaint)
+	firstContentfulPaint := fmt.Sprintf("| firstContentfulPaint=%.1f(F),%.1f(R)", resultData.Average.FirstView.FirstContentfulPaint, resultData.Average.RepeatView.FirstContentfulPaint)
+	firstImagePaint := fmt.Sprintf("| firstImagePaint=%.1f(F),%.1f(R)", resultData.Average.FirstView.FirstImagePaint, resultData.Average.RepeatView.FirstImagePaint)
+	firstPaints := fmt.Sprintf("%s %s %s", firstPaint, firstContentfulPaint, firstImagePaint)
+
+	renderBlockingCSS := fmt.Sprintf("| renderBlockingCSS=%d(F),%d(R)", resultData.Average.FirstView.RenderBlockingCSS, resultData.Average.RepeatView.RenderBlockingCSS)
+	renderBlockingJS := fmt.Sprintf("| renderBlockingJS=%d(F),%d(R)", resultData.Average.FirstView.RenderBlockingJS, resultData.Average.RepeatView.RenderBlockingJS)
+	renderBlocking := fmt.Sprintf("%s %s", renderBlockingCSS, renderBlockingJS)
+
+	requests := fmt.Sprintf("| requests=%d(F),%d(R)", resultData.Average.FirstView.Requests, resultData.Average.RepeatView.Requests)
+
+	responses_200 := fmt.Sprintf("| responses_200=%d(F),%d(R)", resultData.Average.FirstView.Responses_200, resultData.Average.RepeatView.Responses_200)
+	responses_404 := fmt.Sprintf("| responses_404=%d(F),%d(R)", resultData.Average.FirstView.Responses_404, resultData.Average.RepeatView.Responses_404)
+	responses_other := fmt.Sprintf("| responses_other=%d(F),%d(R)", resultData.Average.FirstView.Responses_other, resultData.Average.RepeatView.Responses_other)
+	responses := fmt.Sprintf("%s %s %s", responses_200, responses_404, responses_other)
+
+	score_cache := fmt.Sprintf("| score_cache=%d(F),%d(R)", resultData.Average.FirstView.Score_cache, resultData.Average.RepeatView.Score_cache)
+	score_cdn := fmt.Sprintf("| score_cdn=%d(F),%d(R)", resultData.Average.FirstView.Score_cdn, resultData.Average.RepeatView.Score_cdn)
+	score_gzip := fmt.Sprintf("| score_gzip=%d(F),%d(R)", resultData.Average.FirstView.Score_gzip, resultData.Average.RepeatView.Score_gzip)
+	score_cookies := fmt.Sprintf("| score_cookies=%d(F),%d(R)", resultData.Average.FirstView.Score_cookies, resultData.Average.RepeatView.Score_cookies)
+	score_minify := fmt.Sprintf("| score_minify=%d(F),%d(R)", resultData.Average.FirstView.Score_minify, resultData.Average.RepeatView.Score_minify)
+	score_compress := fmt.Sprintf("| score_compress=%d(F),%d(R)", resultData.Average.FirstView.Score_compress, resultData.Average.RepeatView.Score_compress)
+	score_etags := fmt.Sprintf("| score_etags=%d(F),%d(R)", resultData.Average.FirstView.Score_etags, resultData.Average.RepeatView.Score_etags)
+	score_progressive_jpeg := fmt.Sprintf(" | score_progressive_jpeg=%d(F),%d(R)", resultData.Average.FirstView.Score_progressive_jpeg, resultData.Average.RepeatView.Score_progressive_jpeg)
+	scores := fmt.Sprintf("%s %s %s %s %s %s %s %s", score_cache, score_cdn, score_gzip, score_cookies, score_minify, score_compress, score_etags, score_progressive_jpeg)
+
+	return fmt.Sprintf("%s %s %s %s %s %s %s %s", general, bytesInfo, domInfo, firstPaints, renderBlocking, requests, responses, scores)
 }
