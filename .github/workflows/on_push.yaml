@@ -1,0 +1,8 @@
+on:
+  push:
+  
+jobs:
+  call-workflow-passing-data:
+    uses: phil-inc/phil-cicd/.github/workflows/on_call.yml@master
+    with:
+      test: Hello World
