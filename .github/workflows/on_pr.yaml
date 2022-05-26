@@ -1,4 +1,4 @@
-name: Lint, test, code cov, & build image on master, feature, or tag
+name: Build & Push Image on master or tag
 on: 
   push:
     branches:
@@ -8,7 +8,6 @@ on:
 jobs:
   generate_tag:
     uses: phil-inc/public-actions/.github/workflows/generate_tag.yaml@master
-    needs: test-repo
   build_push:
     uses: phil-inc/public-actions/.github/workflows/build_push.yaml@master
     needs: generate_tag
