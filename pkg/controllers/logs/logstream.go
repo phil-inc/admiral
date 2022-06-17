@@ -44,33 +44,36 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 		if err != nil {
 			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
 		}
-		defer stream.Close()
 
-		logrus.Printf("Started logstream %s.%s.%s", l.namespace, l.pod, l.container)
+		if stream != nil {
+			defer stream.Close()
 
-		go func() {
-			<-l.closed
-			logrus.Printf("Received closure for logstream %s.%s.%s", l.namespace, l.pod, l.container)
-			stream.Close()
-		}()
+			logrus.Printf("Started logstream %s.%s.%s", l.namespace, l.pod, l.container)
 
-		logs := bufio.NewScanner(stream)
+			go func() {
+				<-l.closed
+				logrus.Printf("Received closure for logstream %s.%s.%s", l.namespace, l.pod, l.container)
+				stream.Close()
+			}()
 
-		for logs.Scan() {
-			logMetaData := make(map[string]string)
-			for k, v := range l.podLabels {
-				logMetaData[k] = v
+			logs := bufio.NewScanner(stream)
+
+			for logs.Scan() {
+				logMetaData := make(map[string]string)
+				for k, v := range l.podLabels {
+					logMetaData[k] = v
+				}
+				logMetaData["pod"] = l.pod
+				logMetaData["namespace"] = l.namespace
+
+				err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
+				if err != nil {
+					logrus.Errorf("Failed streaming log to logstore: %s", err)
+				}
 			}
-			logMetaData["pod"] = l.pod
-			logMetaData["namespace"] = l.namespace
-
-			err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
-			if err != nil {
-				logrus.Errorf("Failed streaming log to logstore: %s", err)
-			}
+			logrus.Printf("Logstream closed: %s.%s.%s", l.namespace, l.pod, l.container)
+			l.Finish()
 		}
-		logrus.Printf("Logstream closed: %s.%s.%s", l.namespace, l.pod, l.container)
-		l.Finish()
 	}()
 }
 
