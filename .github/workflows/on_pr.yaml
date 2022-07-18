@@ -17,3 +17,4 @@ jobs:
       name: admiral
       tag: ${{ needs.generate_tag.outputs.tag }}
       push: true
+      notify: true
