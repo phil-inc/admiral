@@ -3,6 +3,7 @@ package logs
 import (
 	"bufio"
 	"context"
+	"time"
 
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/sirupsen/logrus"
@@ -59,6 +60,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 			logs := bufio.NewScanner(stream)
 
 			for logs.Scan() {
+				time.Sleep(1 * time.Second)
 				logMetaData := make(map[string]string)
 				for k, v := range l.podLabels {
 					logMetaData[k] = v
