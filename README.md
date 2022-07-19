@@ -37,6 +37,7 @@ routine Kubernetes operations.
 - Operation testing
     - Routinely perform cluster migrations across regions, accounts, & CSPs
     - Routinely perform disaster recovery activities
+- Metric scraping & exporting
 
 ## Application structure
 
