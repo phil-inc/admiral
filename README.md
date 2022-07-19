@@ -19,6 +19,7 @@ routine Kubernetes operations.
     - Unhealthy (unscheduled pod failure)
 - Send messages to a webhook
 - Stream logs from pods to a logstore (currently supports Grafana Loki)
+- Initiate performance testing on pod updates
 
 ### Desired features
 
