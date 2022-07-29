@@ -54,6 +54,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 			go func() {
 				<-l.closed
 				logrus.Printf("Received closure for logstream %s.%s.%s", l.namespace, l.pod, l.container)
+				l.Finish()
 				stream.Close()
 			}()
 
@@ -73,8 +74,6 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 					logrus.Errorf("Failed streaming log to logstore: %s", err)
 				}
 			}
-			logrus.Printf("Logstream closed: %s.%s.%s", l.namespace, l.pod, l.container)
-			l.Finish()
 		}
 	}()
 }
