@@ -97,7 +97,7 @@ func (c *LogController) onPodDelete(obj interface{}) {
 
 func (c *LogController) newPod(pod *api_v1.Pod) {
 	for _, container := range pod.Spec.Containers {
-		if containerIsNotIgnored(pod, container.Name) {
+		if !ignoreContainer(pod, container.Name) {
 			name := getLogstreamName(pod, container)
 			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore)
 			_, exists := c.logstreams[name]
@@ -161,14 +161,21 @@ func getLogstreamName(pod *api_v1.Pod, container api_v1.Container) string {
 	return name
 }
 
-func containerIsNotIgnored(pod *api_v1.Pod, container string) bool {
+func ignoreContainer(pod *api_v1.Pod, container string) bool {
 	labels := strings.Split(pod.ObjectMeta.Labels["ignore_logs"], ",")
 	for _, label := range labels {
 		if label == container {
-			return false
+			return true
 		}
 	}
-	return true
+	for _, cc := range config.Config.IgnoreContainers {
+		if cc == container {
+			return true
+		}
+	}
+	// if neither the pod labels nor the admiral config values match the container name in the running pod
+	// then continue to process logs for that container
+	return false
 }
 
 func formatLogMetadata(m map[string]string) map[string]string {
