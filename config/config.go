@@ -19,7 +19,7 @@ type Config struct {
 	Performance      Performance `json:"performance"`
 	Namespace        string      `json:"namespace,omitempty"`
 	Cluster          string      `json:"cluster,omitempty"`
-	IgnoreContainers []string    `json:"ignore_containers,omitempty"`
+	IgnoreContainers []string    `json:"ignorecontainers"`
 }
 
 type Logstream struct {

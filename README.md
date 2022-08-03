@@ -57,6 +57,7 @@ logstream:
             url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
     apps: # The label "app" on a pod
         - my-app-deployment
+ignorecontainers: [datadog-agent] # an array of container names to ignore
 ```
 
 Based on the config, the application instantiates a handler. For now, the only
