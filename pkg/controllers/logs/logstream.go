@@ -73,18 +73,19 @@ func (l *logstream) Scan(logs *bufio.Scanner) error {
 		if logs.Err() != nil {
 			return logs.Err() 
 		}
-		logs.Scan()
-		time.Sleep(1 * time.Second)
-		logMetaData := make(map[string]string)
-		for k, v := range l.podLabels {
-			logMetaData[k] = v
-		}
-		logMetaData["pod"] = l.pod
-		logMetaData["namespace"] = l.namespace
+		if logs.Scan() {
+			time.Sleep(1 * time.Second)
+			logMetaData := make(map[string]string)
+			for k, v := range l.podLabels {
+				logMetaData[k] = v
+			}
+			logMetaData["pod"] = l.pod
+			logMetaData["namespace"] = l.namespace
 		
-		err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
-		if err != nil {
-			return err
+			err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
+			if err != nil {
+				return err
+			}
 		}
 	}
 }
