@@ -70,6 +70,9 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 
 func (l *logstream) Scan(logs *bufio.Scanner) error {
 	for {
+		if logs.Err() != nil {
+			return logs.Err() 
+		}
 		logs.Scan()
 		time.Sleep(1 * time.Second)
 		logMetaData := make(map[string]string)
@@ -82,9 +85,6 @@ func (l *logstream) Scan(logs *bufio.Scanner) error {
 		err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 		if err != nil {
 			return err
-		}
-		if logs.Err() != nil {
-			return logs.Err() 
 		}
 	}
 }
