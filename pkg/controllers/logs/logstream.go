@@ -60,22 +60,33 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 
 			logs := bufio.NewScanner(stream)
 
-			for logs.Scan() {
-				time.Sleep(1 * time.Second)
-				logMetaData := make(map[string]string)
-				for k, v := range l.podLabels {
-					logMetaData[k] = v
-				}
-				logMetaData["pod"] = l.pod
-				logMetaData["namespace"] = l.namespace
-
-				err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
-				if err != nil {
-					logrus.Errorf("Failed streaming log to logstore: %s", err)
-				}
+			err := l.Scan(logs)
+			if err != nil {
+				logrus.Errorf("Error scanning logs: %s", err)
 			}
 		}
 	}()
+}
+
+func (l *logstream) Scan(logs bufio.Scanner) error {
+	for logs.Scan() {
+		time.Sleep(1 * time.Second)
+		logMetaData := make(map[string]string)
+		for k, v := range l.podLabels {
+			logMetaData[k] = v
+		}
+		logMetaData["pod"] = l.pod
+		logMetaData["namespace"] = l.namespace
+		
+		err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
+		if err != nil {
+			return err
+		}
+	}
+	if logs.Err() != nil {
+		return err
+	}
+	return l.Scan()
 }
 
 func (l *logstream) Finish() {
