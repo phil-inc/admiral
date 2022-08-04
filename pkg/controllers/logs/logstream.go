@@ -86,7 +86,7 @@ func (l *logstream) Scan(logs bufio.Scanner) error {
 	if logs.Err() != nil {
 		return err
 	}
-	return l.Scan()
+	return l.Scan(logs)
 }
 
 func (l *logstream) Finish() {
