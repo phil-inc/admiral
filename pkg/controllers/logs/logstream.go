@@ -70,6 +70,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 
 func (l *logstream) Scan(logs *bufio.Scanner) error {
 	for {
+		logs.Scan()
 		time.Sleep(1 * time.Second)
 		logMetaData := make(map[string]string)
 		for k, v := range l.podLabels {
