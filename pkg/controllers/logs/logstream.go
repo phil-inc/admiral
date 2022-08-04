@@ -68,7 +68,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 	}()
 }
 
-func (l *logstream) Scan(logs bufio.Scanner) error {
+func (l *logstream) Scan(logs *bufio.Scanner) error {
 	for logs.Scan() {
 		time.Sleep(1 * time.Second)
 		logMetaData := make(map[string]string)
@@ -84,7 +84,7 @@ func (l *logstream) Scan(logs bufio.Scanner) error {
 		}
 	}
 	if logs.Err() != nil {
-		return err
+		return logs.Err() 
 	}
 	return l.Scan(logs)
 }
