@@ -62,7 +62,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 
 			err := l.Scan(logs)
 			if err != nil {
-				logrus.Errorf("Error scanning logs: %s", err)
+				logrus.Errorf("Error scanning logs %s: %s", l.pod, err)
 			}
 		}
 	}()
