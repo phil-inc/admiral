@@ -13,12 +13,13 @@ var (
 )
 
 type Config struct {
-	Fargate     bool        `json:"fargate,omitempty"`
-	Events      Events      `json:"events"`
-	Logstream   Logstream   `json:"logstream"`
-	Performance Performance `json:"performance"`
-	Namespace   string      `json:"namespace,omitempty"`
-	Cluster     string      `json:"cluster,omitempty"`
+	Fargate          bool        `json:"fargate,omitempty"`
+	Events           Events      `json:"events"`
+	Logstream        Logstream   `json:"logstream"`
+	Performance      Performance `json:"performance"`
+	Namespace        string      `json:"namespace,omitempty"`
+	Cluster          string      `json:"cluster,omitempty"`
+	IgnoreContainers []string    `json:"ignorecontainers"`
 }
 
 type Logstream struct {
