@@ -64,6 +64,7 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 			if err != nil {
 				logrus.Errorf("Error scanning logs %s: %s", l.pod, err)
 			}
+			logrus.Printf("Reached end of logstream scope: %s", l.pod)
 		}
 	}()
 }
