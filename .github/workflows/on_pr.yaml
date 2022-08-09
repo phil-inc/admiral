@@ -1,21 +1,20 @@
-name: Releases
-
-on:
-  pull_request:
+name: Build & Push Image on master or tag
+on: 
+  push:
     branches:
       - master
-
+    tags:
+      - 'v*'
 jobs:
-  push-latest-image:
-    name: Build & Push Latest Image
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v2
-      - name: Format repo
-        run: if [ "$(make fmt_list | wc -l)" -gt 1 ]; then exit 1; fi
-      - name: Build Latest
-        run: docker build . -t philinc/admiral:${GITHUB_SHA::8}
-      - name: Login
-        run: docker login -u ${{ secrets.docker_username }} -p ${{ secrets.docker_password }}
-      - name: Push Latest
-        run: docker push philinc/admiral:${GITHUB_SHA::8}
+  generate_tag:
+    uses: phil-inc/public-actions/.github/workflows/generate_tag.yaml@master
+  build_push:
+    uses: phil-inc/public-actions/.github/workflows/build_push.yaml@master
+    needs: generate_tag
+    if: needs.generate_tag.outputs.tag != ''
+    secrets: inherit
+    with:
+      name: admiral
+      tag: ${{ needs.generate_tag.outputs.tag }}
+      push: true
+      notify: true

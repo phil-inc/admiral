@@ -18,8 +18,9 @@ routine Kubernetes operations.
     - NodeNotReady (unscheduled node failure)
     - Unhealthy (unscheduled pod failure)
 - Send messages to a webhook
-- Stream logs to a specified logstore
-- Scrape & expose metrics endpoints
+- Stream logs from pods to a logstore (currently supports Grafana Loki)
+- Scrape and send pod metrics to a backend (Cloudwatch, Prometheus)
+- Initiate performance testing on pod updates
 
 ### Desired features
 
@@ -37,6 +38,7 @@ routine Kubernetes operations.
 - Operation testing
     - Routinely perform cluster migrations across regions, accounts, & CSPs
     - Routinely perform disaster recovery activities
+- Metric scraping & exporting
 
 ## Application structure
 
@@ -55,12 +57,14 @@ logstream:
         loki:
             url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
     apps: # The label "app" on a pod
-      - name: my-app-deployment
+        - my-app-deployment
 metrics:
   handler:
     prometheus: true
+    cloudwatch: false
   apps:
     - capi
+ignorecontainers: [datadog-agent] # an array of container names to ignore
 ```
 
 **NOTE:** Currently this only supports *one* execution mode at a time (`events`,

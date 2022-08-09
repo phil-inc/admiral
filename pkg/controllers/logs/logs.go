@@ -97,21 +97,25 @@ func (c *LogController) onPodDelete(obj interface{}) {
 
 func (c *LogController) newPod(pod *api_v1.Pod) {
 	for _, container := range pod.Spec.Containers {
-		name := getLogstreamName(pod, container)
-		stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore)
-		_, exists := c.logstreams[name]
 
-		if exists {
-			if !c.logstreams[name].Finished {
-				continue
+		if !ignoreContainer(pod, container.Name, c.config.IgnoreContainers) {
+
+			name := getLogstreamName(pod, container)
+			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore)
+			_, exists := c.logstreams[name]
+
+			if exists {
+				if !c.logstreams[name].Finished {
+					continue
+				}
 			}
-		}
 
-		if !exists {
-			c.logstreams[name] = stream
-		}
+			if !exists {
+				c.logstreams[name] = stream
+			}
 
-		stream.Start(c.clientset)
+			stream.Start(c.clientset)
+		}
 	}
 }
 
@@ -157,6 +161,26 @@ func (c *LogController) podIsInConfig(pod *api_v1.Pod) bool {
 func getLogstreamName(pod *api_v1.Pod, container api_v1.Container) string {
 	name := fmt.Sprintf("%s.%s.%s", pod.ObjectMeta.Namespace, pod.ObjectMeta.Name, container.Name)
 	return name
+}
+
+func ignoreContainer(pod *api_v1.Pod, containerName string, ignoreContainers []string) bool {
+	for _, c := range ignoreContainers {
+
+		if c == containerName {
+			return true
+		}
+	}
+
+	labels := strings.Split(pod.ObjectMeta.Labels["ignore_logs"], ",")
+	for _, label := range labels {
+
+		if label == containerName {
+			return true
+		}
+	}
+	// if neither the pod labels nor the admiral config values match the container name in the running pod
+	// then continue to process logs for that container
+	return false
 }
 
 func formatLogMetadata(m map[string]string) map[string]string {

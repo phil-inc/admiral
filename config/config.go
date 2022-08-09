@@ -13,12 +13,14 @@ var (
 )
 
 type Config struct {
-	Fargate   bool      `json:"fargate,omitempty"`
-	Events    Events    `json:"events"`
-	Logstream Logstream `json:"logstream"`
-	Metrics   Metrics   `json:"metrics"`
-	Namespace string    `json:"namespace,omitempty"`
-	Cluster   string    `json:"cluster,omitempty"`
+	Fargate          bool        `json:"fargate,omitempty"`
+	Events           Events      `json:"events"`
+	Logstream        Logstream   `json:"logstream"`
+	Performance      Performance `json:"performance"`
+	Metrics          Metrics     `json:"metrics"`
+	Namespace        string      `json:"namespace,omitempty"`
+	Cluster          string      `json:"cluster,omitempty"`
+	IgnoreContainers []string    `json:"ignorecontainers"`
 }
 
 type Metrics struct {
@@ -37,6 +39,25 @@ type Logstream struct {
 
 type Logstore struct {
 	Loki Loki `json:"loki"`
+}
+
+type Performance struct {
+	Apps   []string `json:"apps"`
+	Target Target   `json:"target"`
+}
+
+type Target struct {
+	Web Web `json:"web"`
+}
+
+type Web struct {
+	Tests map[string][]Test `json:"tests"`
+}
+
+type Test struct {
+	Url    string `json:"url"`
+	Mobile int    `json:"mobile"`
+	Runs   int    `json:"runs"`
 }
 
 type Loki struct {
