@@ -75,6 +75,9 @@ func (l *logstream) Start(t *metav1.Time) {
 
 func (l *logstream) Scan(logs *bufio.Scanner) error {
 	for {
+		if l.Finished {
+			return nil
+		}
 		if logs.Err() != nil {
 			return logs.Err()
 		}
