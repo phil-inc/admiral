@@ -95,7 +95,9 @@ func (l *logstream) Scan(logs *bufio.Scanner) error {
 			logrus.Printf("Waiting one minute then restarting %s", l.pod)
 			t := metav1.NewTime(time.Now())
 			time.Sleep(1 * time.Minute)
-			l.Restart(t.DeepCopy())
+			if !l.Finished {
+				l.Restart(t.DeepCopy())
+			}
 		}
 	}
 }
