@@ -97,6 +97,7 @@ func (l *logstream) Scan(logs *bufio.Scanner) error {
 			time.Sleep(1 * time.Minute)
 			if !l.Finished {
 				l.Restart(t.DeepCopy())
+				return nil
 			}
 		}
 	}
