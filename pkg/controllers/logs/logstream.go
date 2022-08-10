@@ -88,6 +88,7 @@ func (l *logstream) Scan(logs *bufio.Scanner) error {
 				return err
 			}
 		}
+		logrus.Printf("Not logs.Scan(): %s, %s", logs.Text(), l.pod)
 	}
 }
 
