@@ -15,6 +15,7 @@ import (
 	"github.com/phil-inc/admiral/pkg/handlers"
 	"github.com/phil-inc/admiral/pkg/handlers/webhook"
 	"github.com/phil-inc/admiral/pkg/logstores"
+	"github.com/phil-inc/admiral/pkg/logstores/local"
 	"github.com/phil-inc/admiral/pkg/logstores/loki"
 	"github.com/phil-inc/admiral/pkg/target"
 	"github.com/phil-inc/admiral/pkg/target/web"
@@ -85,6 +86,8 @@ func ParseLogHandler(conf *config.Config) logstores.Logstore {
 	switch {
 	case len(conf.Logstream.Logstore.Loki.Url) > 0:
 		logHandler = new(loki.Loki)
+	case conf.Logstream.Logstore.Local:
+		logHandler = new(local.Local)
 	default:
 		logHandler = new(logstores.Default)
 	}
