@@ -101,7 +101,7 @@ func (c *LogController) newPod(pod *api_v1.Pod) {
 		if !ignoreContainer(pod, container.Name, c.config.IgnoreContainers) {
 
 			name := getLogstreamName(pod, container)
-			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore)
+			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore, c.clientset)
 			_, exists := c.logstreams[name]
 
 			if exists {
@@ -114,7 +114,7 @@ func (c *LogController) newPod(pod *api_v1.Pod) {
 				c.logstreams[name] = stream
 			}
 
-			stream.Start(c.clientset)
+			stream.Start(nil)
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -19,9 +20,10 @@ type logstream struct {
 	container string
 	podLabels map[string]string
 	logstore  logstores.Logstore
+	clientset kubernetes.Interface
 }
 
-func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore) *logstream {
+func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface) *logstream {
 	return &logstream{
 		Finished:  false,
 		closed:    make(chan struct{}),
@@ -30,17 +32,19 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 		container: container,
 		podLabels: podLabels,
 		logstore:  logstore,
+		clientset: clientset,
 	}
 }
 
-func (l *logstream) Start(clientset kubernetes.Interface) {
+func (l *logstream) Start(t *metav1.Time) {
 	logrus.Printf("Starting logstream %s.%s.%s", l.namespace, l.pod, l.container)
 
 	go func() {
-		stream, err := clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
+		stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
 			Container:  l.container,
 			Follow:     true,
 			Timestamps: true,
+			SinceTime:  t,
 		}).Stream(context.Background())
 		if err != nil {
 			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
@@ -72,23 +76,26 @@ func (l *logstream) Start(clientset kubernetes.Interface) {
 func (l *logstream) Scan(logs *bufio.Scanner) error {
 	for {
 		if logs.Err() != nil {
-			return logs.Err() 
+			return logs.Err()
 		}
 		if logs.Scan() {
-			time.Sleep(1 * time.Second)
 			logMetaData := make(map[string]string)
 			for k, v := range l.podLabels {
 				logMetaData[k] = v
 			}
 			logMetaData["pod"] = l.pod
 			logMetaData["namespace"] = l.namespace
-		
+
 			err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
 			if err != nil {
 				return err
 			}
-		} else {	
-			logrus.Printf("Not logs.Scan(): %s, %s", logs.Text(), l.pod)
+		} else {
+			logrus.Printf("Empty log scanner: %s", l.pod)
+			logrus.Printf("Waiting one minute then restarting %s", l.pod)
+			t := metav1.NewTime(time.Now())
+			time.Sleep(1 * time.Minute)
+			l.Restart(t.DeepCopy())
 		}
 	}
 }
@@ -101,4 +108,10 @@ func (l *logstream) Finish() {
 func (l *logstream) Delete() {
 	logrus.Printf("Logstream deleted: %s.%s.%s", l.namespace, l.pod, l.container)
 	close(l.closed)
+}
+
+func (l *logstream) Restart(t *metav1.Time) {
+	logrus.Printf("Logstream restarted at %s: %s.%s.%s", t, l.namespace, l.pod, l.container)
+	l.Delete()
+	l.Start(t)
 }

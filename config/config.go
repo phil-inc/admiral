@@ -28,7 +28,8 @@ type Logstream struct {
 }
 
 type Logstore struct {
-	Loki Loki `json:"loki"`
+	Loki  Loki `json:"loki"`
+	Local bool `josn:"local"`
 }
 
 type Performance struct {
