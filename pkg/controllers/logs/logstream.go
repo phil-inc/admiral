@@ -26,7 +26,6 @@ type logstream struct {
 func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface) *logstream {
 	return &logstream{
 		Finished:  false,
-		closed:    make(chan struct{}),
 		namespace: namespace,
 		pod:       pod,
 		container: container,
@@ -38,7 +37,7 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 
 func (l *logstream) Start(t *metav1.Time) {
 	logrus.Printf("Starting logstream %s.%s.%s", l.namespace, l.pod, l.container)
-	l.Finished = false
+	l.closed = make(chan struct{})
 
 	go func() {
 		stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
@@ -57,7 +56,6 @@ func (l *logstream) Start(t *metav1.Time) {
 			go func() {
 				<-l.closed
 				logrus.Printf("Received closure for logstream %s.%s.%s", l.namespace, l.pod, l.container)
-				l.Finish()
 				stream.Close()
 			}()
 
@@ -111,12 +109,13 @@ func (l *logstream) Finish() {
 }
 
 func (l *logstream) Delete() {
+	l.Finish()
 	logrus.Printf("Logstream deleted: %s.%s.%s", l.namespace, l.pod, l.container)
 	close(l.closed)
 }
 
 func (l *logstream) Restart(t *metav1.Time) {
 	logrus.Printf("Logstream restarted at %s: %s.%s.%s", t, l.namespace, l.pod, l.container)
-	l.Delete()
+	close(l.closed)
 	l.Start(t)
 }
