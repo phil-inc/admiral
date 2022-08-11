@@ -52,8 +52,6 @@ func (l *logstream) Start(t *metav1.Time) {
 		}
 
 		if stream != nil {
-			defer stream.Close()
-
 			logrus.Printf("Started logstream %s.%s.%s", l.namespace, l.pod, l.container)
 
 			go func() {
