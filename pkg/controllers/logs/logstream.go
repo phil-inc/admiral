@@ -39,6 +39,7 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 func (l *logstream) Start(t *metav1.Time) {
 	logrus.Printf("Starting logstream %s.%s.%s", l.namespace, l.pod, l.container)
 	l.Finished = false
+	l.closed = make(chan struct{})
 
 	go func() {
 		stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
