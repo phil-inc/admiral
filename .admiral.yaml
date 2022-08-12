@@ -1,0 +1,28 @@
+cluster: k3d-mac
+namespace: "" # Use all namespaces
+events:
+    handler:
+        webhook:
+            url: https://my.webhook.url
+logstream:
+    logstore:
+        loki:
+            url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
+    apps: # The label "app" on a pod
+        - capi
+        - aapi
+        - data-svc
+        - data-dash
+        - md-dash
+        - phil-enroll
+        - phil-me
+        - phil-server
+        - thanos
+        - workflow
+metrics:
+    handler:
+        prometheus: true
+        cloudwatch: false
+    apps:
+        - busybox
+ignorecontainers: [datadog-agent]
