@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/sirupsen/logrus"
 )
 
 type Prometheus struct{}
@@ -31,35 +32,35 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 			}
 
 			for _, n := range m.Nodes {
-				cpuGuage := fmt.Sprintf("%s_cpu", n.Name)
-				if _, exists := g[cpuGuage]; !exists {
-					g[cpuGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+				cpuGauge := fmt.Sprintf("%s_cpu", n.Name)
+				if _, exists := g[cpuGauge]; !exists {
+					g[cpuGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 						Name: "node_cpu",
 						ConstLabels: prometheus.Labels{
 							"name": n.Name,
 						},
 					})
 				}
-				g[cpuGuage].Set(float64(n.Cpu.Value))
+				g[cpuGauge].Set(float64(n.Cpu.Value))
 				pushToGateway(n.Name, "node_cpu", g[cpuGauge])
 
-				memGuage := fmt.Sprintf("%s_mem", n.Name)
-				if _, exists := g[memGuage]; !exists {
-					g[memGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+				memGauge := fmt.Sprintf("%s_mem", n.Name)
+				if _, exists := g[memGauge]; !exists {
+					g[memGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 						Name: "node_memory",
 						ConstLabels: prometheus.Labels{
 							"name": n.Name,
 						},
 					})
 				}
-				g[memGuage].Set(float64(n.Memory.Value))
+				g[memGauge].Set(float64(n.Memory.Value))
 				pushToGateway(n.Name, "node_memory", g[memGauge])
 			}
 
 			for _, po := range m.Pods {
-				cpuGuage := fmt.Sprintf("%s_cpu", po.Name)
-				if _, exists := g[cpuGuage]; !exists {
-					g[cpuGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+				cpuGauge := fmt.Sprintf("%s_cpu", po.Name)
+				if _, exists := g[cpuGauge]; !exists {
+					g[cpuGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 						Name: "pod_cpu",
 						ConstLabels: prometheus.Labels{
 							"name":      po.Name,
@@ -67,12 +68,12 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 						},
 					})
 				}
-				g[cpuGuage].Set(float64(po.Cpu.Value))
+				g[cpuGauge].Set(float64(po.Cpu.Value))
 				pushToGateway(po.Name, "pod_cpu", g[cpuGauge])
 
-				memGuage := fmt.Sprintf("%s_mem", po.Name)
-				if _, exists := g[memGuage]; !exists {
-					g[memGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+				memGauge := fmt.Sprintf("%s_mem", po.Name)
+				if _, exists := g[memGauge]; !exists {
+					g[memGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 						Name: "pod_memory",
 						ConstLabels: prometheus.Labels{
 							"name":      po.Name,
@@ -80,13 +81,13 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 						},
 					})
 				}
-				g[memGuage].Set(float64(po.Memory.Value))
+				g[memGauge].Set(float64(po.Memory.Value))
 				pushToGateway(po.Name, "pod_memory", g[memGauge])
 
 				for _, c := range po.Containers {
-					cpuGuage := fmt.Sprintf("%s_%s_cpu", c.Name, po.Name)
-					if _, exists := g[cpuGuage]; !exists {
-						g[cpuGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+					cpuGauge := fmt.Sprintf("%s_%s_cpu", c.Name, po.Name)
+					if _, exists := g[cpuGauge]; !exists {
+						g[cpuGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 							Name: "container_cpu",
 							ConstLabels: prometheus.Labels{
 								"name":      c.Name,
@@ -95,12 +96,12 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 							},
 						})
 					}
-					g[cpuGuage].Set(float64(c.Cpu.Value))
+					g[cpuGauge].Set(float64(c.Cpu.Value))
 					pushToGateway(c.Name, "container_cpu", g[cpuGauge])
 
-					memGuage := fmt.Sprintf("%s_%s_mem", c.Name, po.Name)
-					if _, exists := g[memGuage]; !exists {
-						g[memGuage] = promauto.NewGauge(prometheus.GaugeOpts{
+					memGauge := fmt.Sprintf("%s_%s_mem", c.Name, po.Name)
+					if _, exists := g[memGauge]; !exists {
+						g[memGauge] = promauto.NewGauge(prometheus.GaugeOpts{
 							Name: "container_memory",
 							ConstLabels: prometheus.Labels{
 								"name":      c.Name,
@@ -109,7 +110,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 							},
 						})
 					}
-					g[memGuage].Set(float64(c.Memory.Value))
+					g[memGauge].Set(float64(c.Memory.Value))
 					pushToGateway(c.Name, "container_memory", g[memGauge])
 				}
 			}
