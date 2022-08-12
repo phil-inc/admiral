@@ -20,6 +20,7 @@ routine Kubernetes operations.
 - Send messages to a webhook
 - Stream logs from pods to a logstore (currently supports Grafana Loki)
 - Initiate performance testing on pod updates
+- Scrape and send metrics
 
 ### Desired features
 
@@ -37,7 +38,6 @@ routine Kubernetes operations.
 - Operation testing
     - Routinely perform cluster migrations across regions, accounts, & CSPs
     - Routinely perform disaster recovery activities
-- Metric scraping & exporting
 
 ## Application structure
 
@@ -58,13 +58,16 @@ logstream:
     apps: # The label "app" on a pod
         - my-app-deployment
 ignorecontainers: [datadog-agent] # an array of container names to ignore
+metrics:
+  handler:
+    prometheus: true
+  apps:
+    - my-app-name
+
 ```
 
-Based on the config, the application instantiates a handler. For now, the only
-available handler is webhook. It then instantiates a controller watching
-the Kubernetes API server for a variety of defined events. Each controller adds
-their events to a queue, which is then popped by the handler and POSTed to the
-webhook.
+Based on the config, the application instantiates a handler. For now, the only available handler is webhook. It then instantiates a controller watching the Kubernetes API server for a variety of defined events. Each controller adds their events to a queue, which is then popped by the handler and POSTed to the webhook.
+
 
 ## Building
 

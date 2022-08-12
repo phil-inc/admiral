@@ -17,9 +17,9 @@ import (
 
 // GetClient returns a clientset from inside the cluster
 func GetClient() (kubernetes.Interface, error) {
-	config, err := rest.InClusterConfig()
+	config, err := GetRestConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Can not get kube config: %v", err)
+		return nil, err
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
@@ -38,19 +38,13 @@ func buildOutOfClusterConfig() (*rest.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 }
 
-// GetClientOutOfCluster returns a kube clientset from outside of cluster
-func GetClientOutOfCluster() (kubernetes.Interface, error) {
-	config, err := buildOutOfClusterConfig()
+// GetRestConfig returns a valid rest client for connecting to Kubernetes
+func GetRestConfig() (*rest.Config, error) {
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Can not get kube config: %v", err)
+		config, err = buildOutOfClusterConfig()
 	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("Can not get kubernetes config: %v", err)
-	}
-
-	return clientset, nil
+	return config, err
 }
 
 // GetObjectMetaData queries for k8s metadata on a given object
