@@ -12,9 +12,12 @@ import (
 )
 
 type Prometheus struct{}
+var conf *config.Config
 
 // Init binds any settings from the config to the handler
 func (p *Prometheus) Init(c *config.Config) error {
+	conf = c
+	logrus.Println("config:", conf) //--remove
 	return nil
 }
 
@@ -119,11 +122,12 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 }
 
 func pushToGateway(name, metrictype string, g prometheus.Gauge) error {
-	if err := push.New("http://localhost:9091/", name).
+	pg := conf.Metrics.Handler.PushGateway
+	if err := push.New(pg, name).
 		Collector(g).
 		Grouping("metric", metrictype).
 		Push(); err != nil {
-		logrus.Errorf("%s %s", "Error pushing", metrictype, "metrics to pushGateway for", name)
+		logrus.Errorf("Error pushing metrics metric, host, name: %s %s %s", metrictype, pg, name)
 		return err
 	}
 	return nil

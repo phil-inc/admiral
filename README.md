@@ -61,6 +61,7 @@ ignorecontainers: [datadog-agent] # an array of container names to ignore
 metrics:
   handler:
     prometheus: true
+    pushgateway: "http://cluster.local:9091"
   apps:
     - my-app-name
 

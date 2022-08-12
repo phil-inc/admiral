@@ -30,6 +30,7 @@ type Metrics struct {
 
 type MetricsHandler struct {
 	Prometheus string `json:"prometheus"`
+	PushGateway string `json:"pushgateway"`
 }
 
 type Logstream struct {
