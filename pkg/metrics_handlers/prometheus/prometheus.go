@@ -2,13 +2,12 @@ package prometheus
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/metrics_handlers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/push"
 )
 
 type Prometheus struct{}
@@ -21,7 +20,6 @@ func (p *Prometheus) Init(c *config.Config) error {
 // Handle transforms & exposes the metrics for Prometheus scraping
 func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 	g := make(map[string]prometheus.Gauge)
-	r := prometheus.NewRegistry()
 	go func() {
 		// This infinite loop breaks when the channel for passing in metrics closes
 		// The receiver <-metrics also blocks until it is passed metrics
@@ -43,7 +41,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[cpuGuage].Set(float64(n.Cpu.Value))
-				r.MustRegister(g[cpuGuage])
+				pushToGateway(n.Name, "node_cpu", g[cpuGauge])
 
 				memGuage := fmt.Sprintf("%s_mem", n.Name)
 				if _, exists := g[memGuage]; !exists {
@@ -55,7 +53,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[memGuage].Set(float64(n.Memory.Value))
-				r.MustRegister(g[memGuage])
+				pushToGateway(n.Name, "node_memory", g[memGauge])
 			}
 
 			for _, po := range m.Pods {
@@ -70,7 +68,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[cpuGuage].Set(float64(po.Cpu.Value))
-				r.MustRegister(g[cpuGuage])
+				pushToGateway(po.Name, "pod_cpu", g[cpuGauge])
 
 				memGuage := fmt.Sprintf("%s_mem", po.Name)
 				if _, exists := g[memGuage]; !exists {
@@ -83,7 +81,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 					})
 				}
 				g[memGuage].Set(float64(po.Memory.Value))
-				r.MustRegister(g[memGuage])
+				pushToGateway(po.Name, "pod_memory", g[memGauge])
 
 				for _, c := range po.Containers {
 					cpuGuage := fmt.Sprintf("%s_%s_cpu", c.Name, po.Name)
@@ -98,7 +96,7 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 						})
 					}
 					g[cpuGuage].Set(float64(c.Cpu.Value))
-					r.MustRegister(g[cpuGuage])
+					pushToGateway(c.Name, "container_cpu", g[cpuGauge])
 
 					memGuage := fmt.Sprintf("%s_%s_mem", c.Name, po.Name)
 					if _, exists := g[memGuage]; !exists {
@@ -112,12 +110,20 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 						})
 					}
 					g[memGuage].Set(float64(c.Memory.Value))
-					r.MustRegister(g[memGuage])
+					pushToGateway(c.Name, "container_memory", g[memGauge])
 				}
 			}
 		}
 	}()
+}
 
-	http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
-	http.ListenAndServe(":2112", nil)
+func pushToGateway(name, metrictype string, g prometheus.Gauge) error {
+	if err := push.New("http://localhost:9091/", name).
+		Collector(g).
+		Grouping("metric", metrictype).
+		Push(); err != nil {
+		logrus.Errorf("%s %s", "Error pushing", metrictype, "metrics to pushGateway for", name)
+		return err
+	}
+	return nil
 }
