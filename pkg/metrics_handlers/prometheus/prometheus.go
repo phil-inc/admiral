@@ -28,7 +28,6 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 		// The receiver <-metrics also blocks until it is passed metrics
 		for {
 			m, open := <-metrics
-			logrus.Println("All possible metrics, unfiltered", m) //--remove
 			if !open {
 				break
 			}
@@ -60,7 +59,6 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 			}
 
 			for _, po := range m.Pods {
-				logrus.Println("po.Name:", po.Name) //--remove
 				cpuGauge := fmt.Sprintf("%s_cpu", po.Name)
 				if _, exists := g[cpuGauge]; !exists {
 					g[cpuGauge] = promauto.NewGauge(prometheus.GaugeOpts{
@@ -119,13 +117,9 @@ func (p *Prometheus) Handle(metrics <-chan metrics_handlers.MetricBatch) {
 			}
 		}
 	}()
-
-	//http.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
-	//http.ListenAndServe(":2112", nil)
 }
 
 func pushToGateway(name, metrictype string, g prometheus.Gauge) error {
-	logrus.Println("Pushing metrics to Prometheus", name, metrictype)
 	if err := push.New("http://localhost:9091/", name).
 		Collector(g).
 		Grouping("metric", metrictype).
