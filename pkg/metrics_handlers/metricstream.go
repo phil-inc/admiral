@@ -67,7 +67,7 @@ func (m *Metricstream) Start(r *rest.Config, ch chan<- MetricBatch) {
 			if err != nil {
 				logrus.Errorf("Failed raw'ing the metrics: %s", err)
 			}
-			//logrus.Println("METRICS for", p, string(metrics))
+
 			m.decodeMetrics(metrics)
 		}
 
