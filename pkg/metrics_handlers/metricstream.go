@@ -16,6 +16,7 @@ import (
 
 type Metricstream struct {
 	Finished bool
+	closed   chan struct{}
 	pod      *api_v1.Pod
 	handler  MetricsHandler
 	batch    MetricBatch
@@ -81,7 +82,11 @@ func (m *Metricstream) Finish() {
 	m.Finished = true
 }
 
-func (m *Metricstream) Delete() {}
+func (m *Metricstream) Delete() {
+	m.Finish()
+	logrus.Printf("Metricstream deleted: %s.%s", m.pod.Namespace, m.pod.Name)
+	close(m.closed)
+}
 
 func (m *Metricstream) decodeMetrics(b []byte) {
 
