@@ -59,22 +59,23 @@ func (m *Metricstream) Start(r *rest.Config, ch chan<- MetricBatch) {
 			logrus.Errorf("Failed creating metrics client: %s", err)
 		}
 		endpoints := []string{"resource", "cadvisor"}
-		for _, p := range endpoints {
-			path := fmt.Sprintf("/api/v1/nodes/%s/proxy/metrics/%s", m.pod.Spec.NodeName, p)
+		logrus.Println("Streaming metrics from", m.pod.Name)
+		for !m.Finished {
+			time.Sleep(1 * time.Second)
+			for _, p := range endpoints {
+				path := fmt.Sprintf("/api/v1/nodes/%s/proxy/metrics/%s", m.pod.Spec.NodeName, p)
 
-			res := mc.RESTClient().Get().RequestURI(path).Do(context.Background())
+				res := mc.RESTClient().Get().RequestURI(path).Do(context.Background())
 
-			metrics, err := res.Raw()
-			if err != nil {
-				logrus.Errorf("Failed raw'ing the metrics: %s", err)
+				metrics, err := res.Raw()
+				if err != nil {
+					logrus.Errorf("Failed raw'ing the metrics: %s", err)
+				}
+
+				m.decodeMetrics(metrics)
 			}
-
-			m.decodeMetrics(metrics)
+			ch <- m.batch
 		}
-
-		ch <- m.batch
-
-		m.Finish()
 
 	}()
 }

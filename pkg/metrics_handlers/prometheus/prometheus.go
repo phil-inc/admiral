@@ -244,7 +244,7 @@ func pushToGateway(name, metrictype string, g prometheus.Gauge) error { //g prom
 			Grouping("metric", metrictype).
 			Push(); err != nil {
 			logrus.Errorf("Error pushing metrics | METRIC, HOST, NAME: %s %s %s", metrictype, pg, name)
-			return err
+
 		}
 	}
 
