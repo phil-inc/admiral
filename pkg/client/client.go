@@ -11,30 +11,24 @@ import (
 	"github.com/phil-inc/admiral/pkg/controllers"
 	"github.com/phil-inc/admiral/pkg/controllers/events"
 	"github.com/phil-inc/admiral/pkg/controllers/logs"
+	"github.com/phil-inc/admiral/pkg/controllers/metrics"
 	"github.com/phil-inc/admiral/pkg/controllers/performance"
 	"github.com/phil-inc/admiral/pkg/handlers"
 	"github.com/phil-inc/admiral/pkg/handlers/webhook"
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/phil-inc/admiral/pkg/logstores/local"
 	"github.com/phil-inc/admiral/pkg/logstores/loki"
+	"github.com/phil-inc/admiral/pkg/metrics_handlers"
+	"github.com/phil-inc/admiral/pkg/metrics_handlers/prometheus"
 	"github.com/phil-inc/admiral/pkg/target"
 	"github.com/phil-inc/admiral/pkg/target/web"
 	"github.com/phil-inc/admiral/pkg/utils"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // Run runs the event loop on a given handler
 func Run(conf *config.Config, operation string) error {
-	var kubeClient kubernetes.Interface
-	var err error
-	_, notInCluster := rest.InClusterConfig()
-	if notInCluster != nil {
-		kubeClient, err = utils.GetClientOutOfCluster()
-	} else {
-		kubeClient, err = utils.GetClient()
-	}
+	kubeClient, err := utils.GetClient()
 	if err != nil {
 		return err
 	}
@@ -52,6 +46,9 @@ func Run(conf *config.Config, operation string) error {
 	case "performance":
 		var target = ParsePerformanceHandler(conf)
 		ctrl = performance.NewPerformanceController(informerFactory, kubeClient, conf, target)
+	case "metrics":
+		var metricsHandler = ParseMetricsHandler(conf)
+		ctrl = metrics.NewMetricsController(informerFactory, metricsHandler, conf)
 	}
 
 	ctrlStop := ctrl.Watch()
@@ -109,4 +106,19 @@ func ParsePerformanceHandler(conf *config.Config) target.Target {
 		log.Fatal(err)
 	}
 	return target
+}
+
+// ParseMetricsHandler returns the first metrics handler it finds (top to bottom)
+func ParseMetricsHandler(conf *config.Config) metrics_handlers.MetricsHandler {
+	var metricsHandler metrics_handlers.MetricsHandler
+	switch {
+	case len(conf.Metrics.Handler.Prometheus) > 0:
+		metricsHandler = new(prometheus.Prometheus)
+	default:
+		metricsHandler = new(metrics_handlers.Default)
+	}
+	if err := metricsHandler.Init(conf); err != nil {
+		log.Fatal(err)
+	}
+	return metricsHandler
 }

@@ -58,6 +58,12 @@ logstream:
     apps: # The label "app" on a pod
         - my-app-deployment
 ignorecontainers: [datadog-agent] # an array of container names to ignore
+metrics:
+  handler:
+    prometheus: true
+    pushgateway: "http://cluster.local:9091"
+  apps:
+    - my-app-name
 ```
 
 Based on the config, the application instantiates a handler. For now, the only
