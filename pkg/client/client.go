@@ -18,6 +18,7 @@ import (
 	"github.com/phil-inc/admiral/pkg/logstores"
 	"github.com/phil-inc/admiral/pkg/logstores/local"
 	"github.com/phil-inc/admiral/pkg/logstores/loki"
+	"github.com/phil-inc/admiral/pkg/logstores/postgres"
 	"github.com/phil-inc/admiral/pkg/metrics_handlers"
 	"github.com/phil-inc/admiral/pkg/metrics_handlers/prometheus"
 	"github.com/phil-inc/admiral/pkg/target"
@@ -83,6 +84,8 @@ func ParseLogHandler(conf *config.Config) logstores.Logstore {
 	switch {
 	case len(conf.Logstream.Logstore.Loki.Url) > 0:
 		logHandler = new(loki.Loki)
+	case len(conf.Logstream.Logstore.Postgres.Host) > 0:
+		logHandler = new(postgres.Postgres)
 	case conf.Logstream.Logstore.Local:
 		logHandler = new(local.Local)
 	default:

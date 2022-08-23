@@ -41,6 +41,7 @@ type Logstream struct {
 type Logstore struct {
 	Loki  Loki `json:"loki"`
 	Local bool `josn:"local"`
+	Postgres Postgres `json:"postgres"`
 }
 
 type Performance struct {
@@ -64,6 +65,14 @@ type Test struct {
 
 type Loki struct {
 	Url string `json:"url"`
+}
+
+type Postgres struct {
+	Host string `json:"host"`
+	Port int `json:"port"`
+	User string `json:"user"`
+	Password string `json:"password"`
+	DBName string `json:"dbname"`
 }
 
 type Events struct {
