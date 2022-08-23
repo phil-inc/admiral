@@ -29,7 +29,7 @@ type Metrics struct {
 }
 
 type MetricsHandler struct {
-	Prometheus string `json:"prometheus"`
+	Prometheus  string `json:"prometheus"`
 	PushGateway string `json:"pushgateway"`
 }
 
@@ -39,8 +39,8 @@ type Logstream struct {
 }
 
 type Logstore struct {
-	Loki  Loki `json:"loki"`
-	Local bool `josn:"local"`
+	Loki     Loki     `json:"loki"`
+	Local    bool     `josn:"local"`
 	Postgres Postgres `json:"postgres"`
 }
 
@@ -68,11 +68,11 @@ type Loki struct {
 }
 
 type Postgres struct {
-	Host string `json:"host"`
-	Port int `json:"port"`
-	User string `json:"user"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
 	Password string `json:"password"`
-	DBName string `json:"dbname"`
+	DBName   string `json:"dbname"`
 }
 
 type Events struct {

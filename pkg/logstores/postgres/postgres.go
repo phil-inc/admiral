@@ -10,11 +10,11 @@ import (
 )
 
 type Postgres struct {
-	host string
-	port int
-	user string
+	host     string
+	port     int
+	user     string
 	password string
-	dbname string
+	dbname   string
 }
 
 func (p *Postgres) Init(c *config.Config) error {
@@ -55,7 +55,7 @@ func (p *Postgres) Init(c *config.Config) error {
 	}
 	logrus.Printf("Result was: %s", result)
 
-	// createTableIfNonexistent(p)
+	// p.createTableIfNonexistent()
 
 	return checkMissingVars(p)
 }
@@ -86,6 +86,6 @@ func checkMissingVars(p *Postgres) error {
 	return nil
 }
 
-func createTableIfNonexistent(p *Postgres) error {
+func (p *Postgres) createTableIfNonexistent() error {
 	return nil
 }
