@@ -46,7 +46,7 @@ func (p *Postgres) Init(c *config.Config) error {
 		return err
 	}
 	p.connection = connection
-	defer p.connection.Close()
+	// Skipping a "defer connection.close()" call since the connection should die if the pod dies
 
 	err = p.connection.Ping()
 	if err != nil {
@@ -65,7 +65,7 @@ func (p *Postgres) Init(c *config.Config) error {
 func (p *Postgres) Stream(log string, logMetadata map[string]string) error {
 	sqlStatement := `INSERT INTO logs (stored_at, message, namespace, app, pod)
 	VALUES ($1, $2, $3, $4, $5)`
-	_, err := p.connection.Exec(sqlStatement, fmt.Sprintf("%d", time.Now().UnixNano()), log, logMetadata["namespace"], logMetadata["app"], logMetadata["pod"])
+	_, err := p.connection.Exec(sqlStatement, time.Now().Format("2006-01-02 15:04:05.000000"), log, logMetadata["namespace"], logMetadata["app"], logMetadata["pod"])
 	if err != nil {
 		panic(err)
 	}
