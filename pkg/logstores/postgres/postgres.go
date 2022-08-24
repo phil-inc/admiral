@@ -3,18 +3,18 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
-	"time"
 	_ "github.com/lib/pq"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
 )
 
 type Postgres struct {
-	host     string
-	port     int
-	user     string
-	password string
-	dbname   string
+	host       string
+	port       int
+	user       string
+	password   string
+	dbname     string
 	connection *sql.DB
 }
 
