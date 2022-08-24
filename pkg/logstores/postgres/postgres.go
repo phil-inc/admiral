@@ -3,10 +3,10 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"time"
 	_ "github.com/lib/pq"
 
 	"github.com/phil-inc/admiral/config"
-	"github.com/sirupsen/logrus"
 )
 
 type Postgres struct {
@@ -15,6 +15,7 @@ type Postgres struct {
 	user     string
 	password string
 	dbname   string
+	connection *sql.DB
 }
 
 func (p *Postgres) Init(c *config.Config) error {
@@ -30,39 +31,45 @@ func (p *Postgres) Init(c *config.Config) error {
 	p.password = password
 	p.dbname = dbname
 
+	err := checkMissingVars(p)
+	if err != nil {
+		return err
+	}
+
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable", host, port, user, dbname)
 	if password != "" {
 		psqlInfo = fmt.Sprintf("%s password=%s", psqlInfo, password)
 	}
 
-	db, err := sql.Open("postgres", psqlInfo)
+	connection, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer db.Close()
+	p.connection = connection
+	defer p.connection.Close()
 
-	err = db.Ping()
+	err = p.connection.Ping()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	logrus.Printf("Successfully connected!")
-
-	sqlStatement := `CREATE TABLE IF NOT EXISTS logs (i integer);`
-	result, err := db.Exec(sqlStatement)
+	err = p.createTableIfNonexistent()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	logrus.Printf("Result was: %s", result)
 
-	// p.createTableIfNonexistent()
-
-	return checkMissingVars(p)
+	return nil
 }
 
 // Stream sends the logs to STDOUT
 func (p *Postgres) Stream(log string, logMetadata map[string]string) error {
-	logrus.Printf(log)
+	sqlStatement := `INSERT INTO logs (stored_at, message, namespace, app, pod)
+	VALUES ($1, $2, $3, $4, $5)`
+	_, err := p.connection.Exec(sqlStatement, fmt.Sprintf("%d", time.Now().UnixNano()), log, logMetadata["namespace"], logMetadata["app"], logMetadata["pod"])
+	if err != nil {
+		panic(err)
+	}
+	// can we get region in here?
 	return nil
 }
 
@@ -87,5 +94,16 @@ func checkMissingVars(p *Postgres) error {
 }
 
 func (p *Postgres) createTableIfNonexistent() error {
+	sqlStatement := `CREATE TABLE IF NOT EXISTS logs (
+		stored_at timestamp, 
+		message text, 
+		namespace text, 
+		app text, 
+		pod text
+	);`
+	_, err := p.connection.Exec(sqlStatement)
+	if err != nil {
+		return err
+	}
 	return nil
 }
