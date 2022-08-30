@@ -46,50 +46,49 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 func (l *logstream) Start(t *metav1.Time) {
 	l.closed = make(chan struct{})
 
-	stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
-		Container:  l.container,
-		Follow:     true,
-		Timestamps: true,
-		SinceTime:  t,
-	}).Stream(context.Background())
-	if err == nil {
-		defer stream.Close()
-	}
-
-	entry := make(chan logEntry)
-
 	go func() {
-		if err != nil {
-			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
-		} else {
-			l.Scan(stream, entry)
+		done := make(chan error)
+		entry := make(chan logEntry)
+		stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
+			Container:  l.container,
+			Follow:     true,
+			Timestamps: true,
+			SinceTime:  t,
+		}).Stream(context.Background())
+		if err == nil {
+			defer stream.Close()
 		}
-		close(entry)
-	}()
 
-	done := make(chan error)
-
-	go func() {
-		for result := range entry {
-			if result.err != nil {
-				done <- result.err
-				return
+		go func() {
+			if err != nil {
+				logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
 			} else {
-				err := l.logstore.Stream(result.text, result.metadata)
-				if err != nil {
-					done <- err
-					break
+				l.Scan(stream, entry)
+			}
+			close(entry)
+		}()
+
+		go func() {
+			for result := range entry {
+				if result.err != nil {
+					done <- result.err
+					return
+				} else {
+					err := l.logstore.Stream(result.text, result.metadata)
+					if err != nil {
+						done <- err
+						break
+					}
 				}
 			}
+		}()
+		select {
+		case err := <-done:
+			logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
+		case <-context.Background().Done():
+			logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
 		}
 	}()
-
-	select {
-	case err := <-done:
-		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
-	case <-context.Background().Done():
-		logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
-	}
 }
 
 func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry) {
@@ -99,9 +98,8 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry) {
 	for !eof {
 		line, err := bufReader.ReadString('\n')
 		if err == io.EOF {
-			eof = true
 			if line == "" {
-				break
+				continue
 			}
 		} else if err != nil && err != io.EOF {
 			ch <- logEntry{err: err}
