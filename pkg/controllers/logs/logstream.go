@@ -117,5 +117,6 @@ func (l *logstream) Delete() {
 func (l *logstream) Restart(t *metav1.Time) {
 	logrus.Printf("Logstream restarted at %s: %s.%s.%s", t, l.namespace, l.pod, l.container)
 	close(l.closed)
+	time.Sleep(1 * time.Second)
 	l.Start(t)
 }
