@@ -3,6 +3,8 @@ package logs
 import (
 	"bufio"
 	"context"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/phil-inc/admiral/pkg/logstores"
@@ -23,6 +25,12 @@ type logstream struct {
 	clientset kubernetes.Interface
 }
 
+type logEntry struct {
+	text     string
+	metadata map[string]string
+	err      error
+}
+
 func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface) *logstream {
 	return &logstream{
 		Finished:  false,
@@ -36,70 +44,79 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 }
 
 func (l *logstream) Start(t *metav1.Time) {
-	logrus.Printf("Starting logstream %s.%s.%s", l.namespace, l.pod, l.container)
 	l.closed = make(chan struct{})
 
+	stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
+		Container:  l.container,
+		Follow:     true,
+		Timestamps: true,
+		SinceTime:  t,
+	}).Stream(context.Background())
+	if err == nil {
+		defer stream.Close()
+	}
+
+	entry := make(chan logEntry)
+
 	go func() {
-		stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
-			Container:  l.container,
-			Follow:     true,
-			Timestamps: true,
-			SinceTime:  t,
-		}).Stream(context.Background())
 		if err != nil {
 			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
+		} else {
+			l.Scan(stream, entry)
 		}
+		close(entry)
+	}()
 
-		if stream != nil {
-			logrus.Printf("Started logstream %s.%s.%s", l.namespace, l.pod, l.container)
+	done := make(chan error)
 
-			go func() {
-				<-l.closed
-				logrus.Printf("Received closure for logstream %s.%s.%s", l.namespace, l.pod, l.container)
-				stream.Close()
-			}()
-
-			logs := bufio.NewScanner(stream)
-
-			err := l.Scan(logs)
-			if err != nil {
-				logrus.Errorf("Error scanning logs %s: %s", l.pod, err)
+	go func() {
+		for result := range entry {
+			if result.err != nil {
+				done <- result.err
+				return
+			} else {
+				err := l.logstore.Stream(result.text, result.metadata)
+				if err != nil {
+					done <- err
+					break
+				}
 			}
-			logrus.Printf("Reached end of logstream scope: %s", l.pod)
 		}
 	}()
+
+	select {
+	case err := <-done:
+		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
+	case <-context.Background().Done():
+		logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
+	}
 }
 
-func (l *logstream) Scan(logs *bufio.Scanner) error {
-	for {
-		if l.Finished {
-			return nil
-		}
-		if logs.Err() != nil {
-			return logs.Err()
-		}
-		if logs.Scan() {
-			logMetaData := make(map[string]string)
-			for k, v := range l.podLabels {
-				logMetaData[k] = v
-			}
-			logMetaData["pod"] = l.pod
-			logMetaData["namespace"] = l.namespace
+func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry) {
+	bufReader := bufio.NewReader(stream)
+	eof := false
 
-			err := l.logstore.Stream(logs.Text(), formatLogMetadata(logMetaData))
-			if err != nil {
-				return err
+	for !eof {
+		line, err := bufReader.ReadString('\n')
+		if err == io.EOF {
+			eof = true
+			if line == "" {
+				break
 			}
-		} else {
-			logrus.Printf("Empty log scanner: %s", l.pod)
-			logrus.Printf("Waiting one minute then restarting %s", l.pod)
-			t := metav1.NewTime(time.Now())
-			time.Sleep(1 * time.Minute)
-			if !l.Finished {
-				l.Restart(t.DeepCopy())
-				return nil
-			}
+		} else if err != nil && err != io.EOF {
+			ch <- logEntry{err: err}
+			break
 		}
+
+		line = strings.TrimSpace(line)
+		md := make(map[string]string)
+		for k, v := range l.podLabels {
+			md[k] = v
+		}
+		md["pod"] = l.pod
+		md["namespace"] = l.namespace
+
+		ch <- logEntry{text: line, metadata: formatLogMetadata(md)}
 	}
 }
 
