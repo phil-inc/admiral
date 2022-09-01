@@ -114,7 +114,7 @@ func (c *LogController) newPod(pod *api_v1.Pod) {
 				c.logstreams[name] = stream
 			}
 
-			stream.Start(nil)
+			go stream.Start(nil)
 		}
 	}
 }
