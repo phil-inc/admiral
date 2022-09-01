@@ -14,11 +14,8 @@ func (l *Local) Init(c *config.Config) error {
 
 // Stream sends the logs to STDOUT
 func (l *Local) Stream(entry chan utils.LogEntry) {
-	for {
-		select {
-		case e := <-entry:
-			l.Send(e.Text, e.Metadata)
-		}
+	for e := range entry {
+		go l.Send(e.Text, e.Metadata)
 	}
 }
 
