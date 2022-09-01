@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/phil-inc/admiral/pkg/logstores"
+	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,15 +24,10 @@ type logstream struct {
 	podLabels map[string]string
 	logstore  logstores.Logstore
 	clientset kubernetes.Interface
+	logCh     chan utils.LogEntry
 }
 
-type logEntry struct {
-	text     string
-	metadata map[string]string
-	err      error
-}
-
-func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface) *logstream {
+func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface, logCh chan utils.LogEntry) *logstream {
 	return &logstream{
 		Finished:  false,
 		namespace: namespace,
@@ -40,14 +36,14 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 		podLabels: podLabels,
 		logstore:  logstore,
 		clientset: clientset,
+		logCh:     logCh,
 	}
 }
 
 func (l *logstream) Start(t *metav1.Time) {
 	l.closed = make(chan struct{})
-
 	restart := make(chan error)
-	entry := make(chan logEntry)
+
 	stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
 		Container:  l.container,
 		Follow:     true,
@@ -61,26 +57,21 @@ func (l *logstream) Start(t *metav1.Time) {
 		if err != nil {
 			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
 		} else {
-			l.Scan(stream, entry, restart)
+			l.Scan(stream, l.logCh, restart)
 		}
 		logrus.Printf("Closing entry: %s.%s.%s", l.namespace, l.pod, l.container)
-		close(entry)
+		close(l.logCh)
 	}()
 
 	go func() {
-		for result := range entry {
-			if result.err != nil {
-				restart <- result.err
+		for result := range l.logCh {
+			if result.Err != nil {
+				restart <- result.Err
 				return
-			} else {
-				err := l.logstore.Stream(result.text, result.metadata)
-				if err != nil {
-					restart <- err
-					break
-				}
 			}
 		}
 	}()
+
 	select {
 	case err := <-restart:
 		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
@@ -91,7 +82,7 @@ func (l *logstream) Start(t *metav1.Time) {
 	}
 }
 
-func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry, restart chan error) {
+func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart chan error) {
 	bufReader := bufio.NewReader(stream)
 	eof := false
 
@@ -104,7 +95,7 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry, restart chan er
 				break
 			}
 		} else if err != nil && err != io.EOF {
-			ch <- logEntry{err: err}
+			ch <- utils.LogEntry{Err: err}
 			break
 		}
 
@@ -116,7 +107,7 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan logEntry, restart chan er
 		md["pod"] = l.pod
 		md["namespace"] = l.namespace
 
-		ch <- logEntry{text: line, metadata: formatLogMetadata(md)}
+		ch <- utils.LogEntry{Text: line, Metadata: formatLogMetadata(md)}
 	}
 }
 

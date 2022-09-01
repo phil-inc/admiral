@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/phil-inc/admiral/config"
+	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
 type Loki struct {
-	url string
+	url    string
+	client *http.Client
 }
 
 type LokiDTO struct {
@@ -30,17 +31,31 @@ func (l *Loki) Init(c *config.Config) error {
 
 	l.url = url
 
+	l.client = &http.Client{}
+
 	return checkMissingVars(l)
 }
 
 // Stream sends the logs to Loki
-func (l *Loki) Stream(log string, logMetadata map[string]string) error {
+func (l *Loki) Stream(entry chan utils.LogEntry) {
+	for {
+		select {
+		case e := <-entry:
+			err := l.Send(e.Text, e.Metadata)
+			if err != nil {
+				logrus.Error(err)
+			}
+		}
+	}
+}
+
+func (l *Loki) Send(log string, metadata map[string]string) error {
 	msg := &LokiDTO{
 		Streams: []Streams{
 			{
-				Stream: logMetadata,
+				Stream: metadata,
 				Values: [][]string{
-					{fmt.Sprintf("%d", time.Now().UnixNano()), log},
+					{log},
 				},
 			},
 		},
@@ -59,8 +74,7 @@ func (l *Loki) Stream(log string, logMetadata map[string]string) error {
 	}
 	req.Header.Add("Content-Type", "application/json")
 
-	client := &http.Client{}
-	res, err := client.Do(req)
+	res, err := l.client.Do(req)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/logstores"
+	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 	api_v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -21,6 +22,7 @@ type LogController struct {
 	config          *config.Config
 	logstreams      map[string]*logstream
 	logstore        logstores.Logstore
+	logCh           chan utils.LogEntry
 }
 
 // Instantiates a controller for watching and handling logs
@@ -34,6 +36,7 @@ func NewLogController(informerFactory informers.SharedInformerFactory, clientset
 		config:          config,
 		logstreams:      make(map[string]*logstream),
 		logstore:        logstore,
+		logCh:           make(chan utils.LogEntry),
 	}
 
 	podInformer.Informer().AddEventHandler(
@@ -50,6 +53,7 @@ func NewLogController(informerFactory informers.SharedInformerFactory, clientset
 // Watch creates the informerFactory and initializes the log watcher
 func (c *LogController) Watch() chan struct{} {
 	logStop := make(chan struct{})
+	go c.logstore.Stream(c.logCh)
 	err := c.Run(logStop)
 	if err != nil {
 		logrus.Fatal(err)
@@ -101,7 +105,7 @@ func (c *LogController) newPod(pod *api_v1.Pod) {
 		if !ignoreContainer(pod, container.Name, c.config.IgnoreContainers) {
 
 			name := getLogstreamName(pod, container)
-			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore, c.clientset)
+			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore, c.clientset, c.logCh)
 			_, exists := c.logstreams[name]
 
 			if exists {
