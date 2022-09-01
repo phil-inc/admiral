@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/utils"
@@ -38,24 +39,18 @@ func (l *Loki) Init(c *config.Config) error {
 
 // Stream sends the logs to Loki
 func (l *Loki) Stream(entry chan utils.LogEntry) {
-	for {
-		select {
-		case e := <-entry:
-			err := l.Send(e.Text, e.Metadata)
-			if err != nil {
-				logrus.Error(err)
-			}
-		}
+	for e := range entry {
+		go l.Send(e.Text, e.Metadata)
 	}
 }
 
-func (l *Loki) Send(log string, metadata map[string]string) error {
+func (l *Loki) Send(log string, metadata map[string]string) {
 	msg := &LokiDTO{
 		Streams: []Streams{
 			{
 				Stream: metadata,
 				Values: [][]string{
-					{log},
+					{fmt.Sprintf("%d", time.Now().UnixNano()), log},
 				},
 			},
 		},
@@ -63,29 +58,27 @@ func (l *Loki) Send(log string, metadata map[string]string) error {
 
 	body, err := json.Marshal(msg)
 	if err != nil {
-		return err
+		logrus.Error(err)
 	}
 
 	url := fmt.Sprintf("%s/loki/api/v1/push", l.url)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
-		return err
+		logrus.Error(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	res, err := l.client.Do(req)
 	if err != nil {
-		return err
+		logrus.Error(err)
 	}
 
 	if res.StatusCode != 204 {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(res.Body)
-		logrus.Printf("%s - %s", res.Status, buf.String())
+		logrus.Errorf("%s - %s", res.Status, buf.String())
 	}
-
-	return nil
 }
 
 func checkMissingVars(l *Loki) error {
