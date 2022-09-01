@@ -40,7 +40,9 @@ func (l *Loki) Init(c *config.Config) error {
 // Stream sends the logs to Loki
 func (l *Loki) Stream(entry chan utils.LogEntry) {
 	for e := range entry {
-		go l.Send(e.Text, e.Metadata)
+		if e.Err == nil {
+			go l.Send(e.Text, e.Metadata)
+		}
 	}
 }
 

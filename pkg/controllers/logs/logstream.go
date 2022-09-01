@@ -89,7 +89,6 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart c
 		if err == io.EOF {
 			eof = true
 			if line == "" {
-				restart <- err
 				break
 			}
 		} else if err != nil && err != io.EOF {
