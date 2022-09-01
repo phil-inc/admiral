@@ -59,8 +59,6 @@ func (l *logstream) Start(t *metav1.Time) {
 		} else {
 			l.Scan(stream, l.logCh, restart)
 		}
-		logrus.Printf("Closing entry: %s.%s.%s", l.namespace, l.pod, l.container)
-		close(l.logCh)
 	}()
 
 	go func() {
