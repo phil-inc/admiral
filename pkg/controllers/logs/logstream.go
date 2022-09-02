@@ -61,25 +61,23 @@ func (l *logstream) Start(t *metav1.Time) {
 
 	go l.Scan(stream, l.logCh, restart)
 
-	go func() {
-		for result := range l.logCh {
-			if result.Err != nil {
-				restart <- result.Err
-				return
-			}
+	select {
+	case result := <-l.logCh:
+		if result.Err != nil {
+			restart <- result.Err
 		}
-	}()
-
-	go func() {
-		for err := range restart {
-			logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
-			t := metav1.NewTime(time.Now())
-			time.Sleep(60 * time.Second)
-			if !l.Finished {
-				l.Flush(t.DeepCopy())
-			}
+	case <-ctx.Done():
+		if ctx.Err() != nil {
+			restart <- ctx.Err()
 		}
-	}()
+	case err := <-restart:
+		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
+		t := metav1.NewTime(time.Now())
+		time.Sleep(60 * time.Second)
+		if !l.Finished {
+			l.Flush(t.DeepCopy())
+		}
+	}
 
 	<-l.closed
 	logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
