@@ -43,7 +43,7 @@ func (l *Loki) Init(c *config.Config) error {
 func (l *Loki) Stream(entry chan utils.LogEntry) {
 	for e := range entry {
 		if e.Err == nil {
-			go l.Send(e.Text, e.Metadata)
+			l.Send(e.Text, e.Metadata)
 		}
 	}
 }
