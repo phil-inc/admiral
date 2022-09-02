@@ -61,11 +61,15 @@ func (l *logstream) Start(t *metav1.Time) {
 
 	go l.Scan(stream, l.logCh, restart)
 
-	select {
-	case result := <-l.logCh:
-		if result.Err != nil {
-			restart <- result.Err
+	go func() {
+		for result := range l.logCh {
+			if result.Err != nil {
+				restart <- result.Err
+			}
 		}
+	}()
+
+	select {
 	case <-ctx.Done():
 		if ctx.Err() != nil {
 			restart <- ctx.Err()
