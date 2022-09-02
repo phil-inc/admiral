@@ -44,22 +44,22 @@ func (l *logstream) Start(t *metav1.Time) {
 	l.closed = make(chan struct{})
 	restart := make(chan error)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
+	defer cancel()
+
 	stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
 		Container:  l.container,
 		Follow:     true,
 		Timestamps: true,
 		SinceTime:  t,
-	}).Stream(context.Background())
-	if err == nil {
-		defer stream.Close()
+	}).Stream(ctx)
+	if err != nil {
+		restart <- err
 	}
-	go func() {
-		if err != nil {
-			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
-		} else {
-			l.Scan(stream, l.logCh, restart)
-		}
-	}()
+
+	defer stream.Close()
+
+	go l.Scan(stream, l.logCh, restart)
 
 	go func() {
 		for result := range l.logCh {
@@ -70,14 +70,16 @@ func (l *logstream) Start(t *metav1.Time) {
 		}
 	}()
 
-	select {
-	case err := <-restart:
-		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
-		t := metav1.NewTime(time.Now())
-		l.Flush(t.DeepCopy())
-	case <-l.closed:
-		logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
-	}
+	go func() {
+		for err := range restart {
+			logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
+			t := metav1.NewTime(time.Now())
+			l.Flush(t.DeepCopy())
+		}
+	}()
+
+	<-l.closed
+	logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
 }
 
 func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart chan error) {
@@ -120,8 +122,9 @@ func (l *logstream) Delete() {
 }
 
 func (l *logstream) Flush(t *metav1.Time) {
-	close(l.closed)
 	time.Sleep(30 * time.Second)
+	close(l.closed)
+	time.Sleep(1 * time.Second)
 	go l.Start(t)
 	logrus.Printf("Flushing %s\t %s\t %s\t %s", t, l.namespace, l.pod, l.container)
 }
