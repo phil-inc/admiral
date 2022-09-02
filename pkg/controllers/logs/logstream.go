@@ -49,7 +49,7 @@ func (l *logstream) Start(t *metav1.Time) {
 		Follow:     true,
 		Timestamps: true,
 		SinceTime:  t,
-	}).Timeout(1 * time.Second).Stream(context.Background())
+	}).Stream(context.Background())
 	if err != nil {
 		restart <- err
 		return
