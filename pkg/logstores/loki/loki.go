@@ -74,9 +74,7 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 	res, err := l.client.Do(req)
 	if err != nil {
 		logrus.Error(err)
-	}
-
-	if res.StatusCode != 204 {
+	} else if res.StatusCode != 204 {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(res.Body)
 		logrus.Errorf("%s - %s", res.Status, buf.String())
