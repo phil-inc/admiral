@@ -68,10 +68,11 @@ func (l *logstream) Start(t *metav1.Time) {
 		logrus.Errorf("%s \t %s \t %s \t %s", l.namespace, l.pod, l.container, err)
 		t := metav1.NewTime(time.Now())
 		l.Flush(t.DeepCopy())
+	case <-l.closed:
+		logrus.Printf("DONE: %s \t %s \t %s", l.namespace, l.pod, l.container)
 	}
 
 	<-l.closed
-	logrus.Printf("DONE: %s \t %s \t %s", l.namespace, l.pod, l.container)
 }
 
 func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart chan error) {
@@ -82,7 +83,8 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart c
 		line, err := bufReader.ReadString('\n')
 		if err == io.EOF {
 			eof = true
-		} else if err != nil {
+			break
+		} else if err != nil && err != io.EOF {
 			restart <- err
 			break
 		}
