@@ -61,20 +61,16 @@ func (l *logstream) Start(t *metav1.Time) {
 
 	defer stream.Close()
 
-	go l.Scan(stream, l.logCh, restart)
+	go func() {
+		l.Scan(stream, l.logCh, restart)
+	}()
 
 	select {
 	case <-ctx.Done():
-		if ctx.Err() != nil {
-			restart <- ctx.Err()
-		}
+		l.Restart()
 	case err := <-restart:
 		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
-		t := metav1.NewTime(time.Now())
-		time.Sleep(60 * time.Second)
-		if !l.Finished {
-			l.Flush(t.DeepCopy())
-		}
+		l.Restart()
 	}
 
 	<-l.closed
@@ -125,4 +121,12 @@ func (l *logstream) Flush(t *metav1.Time) {
 	time.Sleep(1 * time.Second)
 	go l.Start(t)
 	logrus.Printf("Flushing %s\t %s\t %s\t %s", t, l.namespace, l.pod, l.container)
+}
+
+func (l *logstream) Restart() {
+	t := metav1.NewTime(time.Now())
+	time.Sleep(60 * time.Second)
+	if !l.Finished {
+		l.Flush(t.DeepCopy())
+	}
 }
