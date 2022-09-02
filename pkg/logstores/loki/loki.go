@@ -32,7 +32,9 @@ func (l *Loki) Init(c *config.Config) error {
 
 	l.url = url
 
-	l.client = &http.Client{}
+	l.client = &http.Client{
+		Timeout: 5 * time.Second,
+	}
 
 	return checkMissingVars(l)
 }
@@ -74,7 +76,9 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 	res, err := l.client.Do(req)
 	if err != nil {
 		logrus.Error(err)
-	} else if res.StatusCode != 204 {
+	}
+
+	if res.StatusCode != 204 {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(res.Body)
 		logrus.Errorf("%s - %s", res.Status, buf.String())
