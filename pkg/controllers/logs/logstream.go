@@ -74,8 +74,10 @@ func (l *logstream) Start(t *metav1.Time) {
 		for err := range restart {
 			logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
 			t := metav1.NewTime(time.Now())
-			time.Sleep(30 * time.Second)
-			l.Flush(t.DeepCopy())
+			time.Sleep(60 * time.Second)
+			if !l.Finished {
+				l.Flush(t.DeepCopy())
+			}
 		}
 	}()
 
