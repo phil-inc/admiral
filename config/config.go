@@ -29,11 +29,12 @@ type Metrics struct {
 }
 
 type MetricsHandler struct {
-	Prometheus string `json:"prometheus"`
+	Prometheus  string `json:"prometheus"`
 	PushGateway string `json:"pushgateway"`
 }
 
 type Logstream struct {
+	Timeout  string   `json:"timeout"`
 	Logstore Logstore `json:"logstore"`
 	Apps     []string `json:"apps"`
 }

@@ -3,6 +3,7 @@ package logs
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/logstores"
@@ -23,10 +24,17 @@ type LogController struct {
 	logstreams      map[string]*logstream
 	logstore        logstores.Logstore
 	logCh           chan utils.LogEntry
+	timeout         time.Duration
 }
 
 // Instantiates a controller for watching and handling logs
 func NewLogController(informerFactory informers.SharedInformerFactory, clientset kubernetes.Interface, config *config.Config, logstore logstores.Logstore) *LogController {
+	t, err := time.ParseDuration(config.Logstream.Timeout)
+	if err != nil {
+		logrus.Printf("Invalid logstream timeout, defaulting to 10m")
+		t = 10 * time.Minute
+	}
+
 	podInformer := informerFactory.Core().V1().Pods()
 
 	c := &LogController{
@@ -37,6 +45,7 @@ func NewLogController(informerFactory informers.SharedInformerFactory, clientset
 		logstreams:      make(map[string]*logstream),
 		logstore:        logstore,
 		logCh:           make(chan utils.LogEntry),
+		timeout:         t,
 	}
 
 	podInformer.Informer().AddEventHandler(
@@ -105,7 +114,7 @@ func (c *LogController) newPod(pod *api_v1.Pod) {
 		if !ignoreContainer(pod, container.Name, c.config.IgnoreContainers) {
 
 			name := getLogstreamName(pod, container)
-			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore, c.clientset, c.logCh)
+			stream := NewLogstream(pod.Namespace, pod.Name, container.Name, pod.Labels, c.logstore, c.clientset, c.logCh, c.timeout)
 			_, exists := c.logstreams[name]
 
 			if exists {
