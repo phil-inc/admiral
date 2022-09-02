@@ -50,28 +50,34 @@ func (l *logstream) Start(t *metav1.Time) {
 		Timestamps: true,
 		SinceTime:  t,
 	}).Stream(context.Background())
-	if err != nil {
-		restart <- err
-		return
+	if err == nil {
+		defer stream.Close()
 	}
+	go func() {
+		if err != nil {
+			logrus.Errorf("Failed opening logstream %s.%s.%s: %s", l.namespace, l.pod, l.container, err)
+		} else {
+			l.Scan(stream, l.logCh, restart)
+		}
+	}()
 
-	defer stream.Close()
-
-	go l.Scan(stream, l.logCh, restart)
+	go func() {
+		for result := range l.logCh {
+			if result.Err != nil {
+				restart <- result.Err
+				return
+			}
+		}
+	}()
 
 	select {
-	case result := <-l.logCh:
-		if result.Err != nil {
-			restart <- result.Err
-		}
 	case err := <-restart:
-		logrus.Errorf("%s \t %s \t %s \t %s", l.namespace, l.pod, l.container, err)
+		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
 		t := metav1.NewTime(time.Now())
 		l.Flush(t.DeepCopy())
+	case <-l.closed:
+		logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
 	}
-
-	<-l.closed
-	logrus.Printf("DONE: %s \t %s \t %s", l.namespace, l.pod, l.container)
 }
 
 func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart chan error) {
@@ -82,7 +88,10 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart c
 		line, err := bufReader.ReadString('\n')
 		if err == io.EOF {
 			eof = true
-		} else if err != nil {
+			if line == "" {
+				break
+			}
+		} else if err != nil && err != io.EOF {
 			ch <- utils.LogEntry{Err: err}
 			break
 		}
@@ -100,13 +109,13 @@ func (l *logstream) Scan(stream io.ReadCloser, ch chan utils.LogEntry, restart c
 }
 
 func (l *logstream) Finish() {
-	logrus.Printf("Logstream finished: %s \t %s \t %s", l.namespace, l.pod, l.container)
+	logrus.Printf("Logstream finished: %s\t%s\t%s", l.namespace, l.pod, l.container)
 	l.Finished = true
 }
 
 func (l *logstream) Delete() {
 	l.Finish()
-	logrus.Printf("Logstream deleted: %s \t %s \t %s", l.namespace, l.pod, l.container)
+	logrus.Printf("Logstream deleted: %s\t%s\t%s", l.namespace, l.pod, l.container)
 	close(l.closed)
 }
 
@@ -114,5 +123,5 @@ func (l *logstream) Flush(t *metav1.Time) {
 	close(l.closed)
 	time.Sleep(30 * time.Second)
 	go l.Start(t)
-	logrus.Printf("Flushing %s \t %s \t %s \t %s", t, l.namespace, l.pod, l.container)
+	logrus.Printf("Flushing %s\t %s\t %s\t %s", t, l.namespace, l.pod, l.container)
 }
