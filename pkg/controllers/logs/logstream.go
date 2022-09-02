@@ -25,9 +25,10 @@ type logstream struct {
 	logstore  logstores.Logstore
 	clientset kubernetes.Interface
 	logCh     chan utils.LogEntry
+	timeout   time.Duration
 }
 
-func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface, logCh chan utils.LogEntry) *logstream {
+func NewLogstream(namespace string, pod string, container string, podLabels map[string]string, logstore logstores.Logstore, clientset kubernetes.Interface, logCh chan utils.LogEntry, timeout time.Duration) *logstream {
 	return &logstream{
 		Finished:  false,
 		namespace: namespace,
@@ -37,6 +38,7 @@ func NewLogstream(namespace string, pod string, container string, podLabels map[
 		logstore:  logstore,
 		clientset: clientset,
 		logCh:     logCh,
+		timeout:   timeout,
 	}
 }
 
@@ -44,7 +46,7 @@ func (l *logstream) Start(t *metav1.Time) {
 	l.closed = make(chan struct{})
 	restart := make(chan error)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
 
 	stream, err := l.clientset.CoreV1().Pods(l.namespace).GetLogs(l.pod, &api_v1.PodLogOptions{
@@ -59,21 +61,22 @@ func (l *logstream) Start(t *metav1.Time) {
 
 	defer stream.Close()
 
-	go l.Scan(stream, l.logCh, restart)
-
-	select {
-	case <-ctx.Done():
-		if ctx.Err() != nil {
-			restart <- ctx.Err()
+	go func() {
+		l.Scan(stream, l.logCh, restart)
+		select {
+		case <-ctx.Done():
+			if ctx.Err() != nil {
+				restart <- ctx.Err()
+			}
+		case err := <-restart:
+			logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
+			t := metav1.NewTime(time.Now())
+			time.Sleep(60 * time.Second)
+			if !l.Finished {
+				l.Flush(t.DeepCopy())
+			}
 		}
-	case err := <-restart:
-		logrus.Errorf("%s\t%s\t%s\t%s", l.namespace, l.pod, l.container, err)
-		t := metav1.NewTime(time.Now())
-		time.Sleep(60 * time.Second)
-		if !l.Finished {
-			l.Flush(t.DeepCopy())
-		}
-	}
+	}()
 
 	<-l.closed
 	logrus.Printf("DONE: %s\t%s\t%s", l.namespace, l.pod, l.container)
