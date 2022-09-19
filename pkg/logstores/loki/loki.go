@@ -49,12 +49,41 @@ func (l *Loki) Stream(entry chan utils.LogEntry) {
 }
 
 func (l *Loki) Send(log string, metadata map[string]string) {
+
+	timeStamp := time.Now().UnixNano()
+
+	if log[0:1] == "{" {
+		// potentially a json log. parse to get all labels
+		var logLine map[string]string
+
+		err := json.Unmarshal([]byte(log), &logLine)
+		if err == nil {
+			for k, v := range logLine {
+
+				if k == "msg" {
+					log = v
+					continue
+				}
+
+				if k == "time" {
+					t, err := time.Parse(time.RFC3339, v)
+					if err == nil {
+						timeStamp = t.UnixNano()
+					}
+					continue
+				}
+
+				metadata[k] = v
+			}
+		}
+	}
+
 	msg := &LokiDTO{
 		Streams: []Streams{
 			{
 				Stream: metadata,
 				Values: [][]string{
-					{fmt.Sprintf("%d", time.Now().UnixNano()), log},
+					{fmt.Sprintf("%d", timeStamp), log},
 				},
 			},
 		},
