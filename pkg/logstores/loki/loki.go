@@ -75,12 +75,6 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 		err := json.Unmarshal([]byte(log), &logLine)
 		if err == nil {
 			for k, v := range logLine {
-
-				if k == "msg" || k == "log" {
-					log = v
-					continue
-				}
-
 				if k == "time" {
 					t, err := time.Parse(time.RFC3339, v)
 					if err == nil {
