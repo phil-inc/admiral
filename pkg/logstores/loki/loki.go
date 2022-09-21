@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/phil-inc/admiral/config"
@@ -50,7 +51,22 @@ func (l *Loki) Stream(entry chan utils.LogEntry) {
 
 func (l *Loki) Send(log string, metadata map[string]string) {
 
+	// default timestamp if we can't extract it from the logs
 	timeStamp := time.Now().UnixNano()
+
+	// since we have Timestamps=true for PodLogOptions
+	// the first component will be the timestamp
+	parts := strings.SplitN(log, " ", 2)
+	t, err := time.Parse(time.RFC3339, parts[0])
+	if err == nil {
+		timeStamp = t.UnixNano()
+
+		if len(parts) > 1 {
+			log = parts[1]
+		} else {
+			log = ""
+		}
+	}
 
 	if log[0:1] == "{" {
 		// potentially a json log. parse to get all labels
@@ -60,7 +76,7 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 		if err == nil {
 			for k, v := range logLine {
 
-				if k == "msg" {
+				if k == "msg" || k == "log" {
 					log = v
 					continue
 				}
