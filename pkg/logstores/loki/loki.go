@@ -68,7 +68,7 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 		}
 	}
 
-	if log[0:1] == "{" {
+	if len(log) > 0 && log[0:1] == "{" {
 		// potentially a json log. parse to get all labels
 		var logLine map[string]string
 
