@@ -69,21 +69,16 @@ func (l *Loki) Send(log string, metadata map[string]string) {
 	}
 
 	if len(log) > 0 && log[0:1] == "{" {
-		// potentially a json log. parse to get all labels
-		var logLine map[string]string
+		// potentially a json log. parse to get timestamp
+		var logLine map[string]interface{}
 
 		err := json.Unmarshal([]byte(log), &logLine)
 		if err == nil {
-			for k, v := range logLine {
-				if k == "time" {
-					t, err := time.Parse(time.RFC3339, v)
-					if err == nil {
-						timeStamp = t.UnixNano()
-					}
-					continue
+			if v, ok := logLine["time"]; ok {
+				t, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", v))
+				if err == nil {
+					timeStamp = t.UnixNano()
 				}
-
-				metadata[k] = v
 			}
 		}
 	}
