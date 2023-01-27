@@ -21,24 +21,6 @@ routine Kubernetes operations.
 - Stream logs from pods to a logstore (currently supports Grafana Loki)
 - Initiate performance testing on pod updates
 
-### Desired features
-
-- Chaos engineering
-    - Randomly kill pods
-    - Randomly remove (Fargate) nodes from a cluster
-    - Randomly destroy cloud resources the cluster utilizes (load balancers, databases, buckets, messaging queues/subscriptions)
-- Integration testing
-    - Execute Kubernetes jobs to validate the state of the cluster
-    - Validate pod health
-    - Validate ingress health
-    - Validate cloud resource availability (load balancer, database, buckets, etc.)
-    - Validate pod-to-pod networking
-    - Validate containerized applications work as expected
-- Operation testing
-    - Routinely perform cluster migrations across regions, accounts, & CSPs
-    - Routinely perform disaster recovery activities
-- Metric scraping & exporting
-
 ## Application structure
 
 Presently, the application depends on a single configuration file:
