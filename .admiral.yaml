@@ -1,0 +1,11 @@
+fargate: true
+cluster: phil-dev-east
+namespace: ""
+logstream:
+  timeout: 1m
+  logstore:
+    local: true
+  apps:
+  - phil-enroll
+ignorecontainers:
+  - datadog-agent
