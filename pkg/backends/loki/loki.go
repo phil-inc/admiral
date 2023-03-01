@@ -110,15 +110,9 @@ func (l *loki) newLokiRequest(method string, body []byte) *http.Request {
 }
 
 func (l *loki) sendRequest(req *http.Request) {
-	res, err := l.client.Do(req)
+	_, err := l.client.Do(req)
 	if err != nil {
 		l.errChannel <- err
-	}
-
-	if res.StatusCode != 204 {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(res.Body)
-		l.errChannel <- fmt.Errorf("%s - %s", res.Status, buf.String())
 	}
 }
 
