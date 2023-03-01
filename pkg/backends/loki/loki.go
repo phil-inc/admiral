@@ -7,10 +7,15 @@ import (
 	"net/http"
 )
 
+type RawLog struct {
+	log      string
+	metadata map[string]string
+}
+
 type Builder struct {
 	url        string
 	client     *http.Client
-	logChannel chan string
+	logChannel chan RawLog
 	errChannel chan error
 }
 
@@ -44,7 +49,7 @@ func (b *Builder) Client(cli *http.Client) *Builder {
 
 // LogChannel injects a channel receiving the log
 // messages that will end up going to Loki in Stream().
-func (b *Builder) LogChannel(l chan string) *Builder {
+func (b *Builder) LogChannel(l chan RawLog) *Builder {
 	b.logChannel = l
 	return b
 }
@@ -59,8 +64,9 @@ func (b *Builder) ErrChannel(e chan error) *Builder {
 type loki struct {
 	url        string
 	client     *http.Client
-	logChannel chan string
+	logChannel chan RawLog
 	errChannel chan error
+	open       chan bool
 }
 
 type lokiDTO struct {
@@ -75,39 +81,55 @@ type streams struct {
 // Stream does a POST request of the logChannel
 // into the Loki API.
 func (l *loki) Stream() {
-	for log := range l.logChannel {
-		msg := &lokiDTO{
-			streams: []streams{
-				{
-					Stream: "",
-					Values: [][]string{
-						{""},
-					},
-				},
-			},
-		}
+	for raw := range l.logChannel {
+		dto := rawLogToDTO(raw)
 
-		body, err := json.Marshal(msg)
-		if err != nil {
-			l.errChannel <- err
-		}
+		body := l.serializeBody(dto)
+		req := l.newLokiRequest("POST", body)
 
-		req, err := http.NewRequest("POST", l.url, bytes.NewBuffer(body))
-		if err != nil {
-			l.errChannel <- err
-		}
 		req.Header.Add("Content-Type", "application/json")
 
-		res, err := l.client.Do(req)
-		if err != nil {
-			l.errChannel <- err
-		}
+		l.sendRequest(req)
+	}
+}
 
-		if res.StatusCode != 204 {
-			buf := new(bytes.Buffer)
-			buf.ReadFrom(res.Body)
-			l.errChannel <- fmt.Errorf("%s - %s", res.Status, buf.String())
-		}
+func (l *loki) serializeBody(raw interface{}) []byte {
+	body, err := json.Marshal(raw)
+	if err != nil {
+		l.errChannel <- err
+	}
+	return body
+}
+
+func (l *loki) newLokiRequest(method string, body []byte) *http.Request {
+	req, err := http.NewRequest(method, l.url, bytes.NewBuffer(body))
+	if err != nil {
+		l.errChannel <- err
+	}
+	return req
+}
+
+func (l *loki) sendRequest(req *http.Request) {
+	res, err := l.client.Do(req)
+	if err != nil {
+		l.errChannel <- err
+	}
+
+	if res.StatusCode != 204 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(res.Body)
+		l.errChannel <- fmt.Errorf("%s - %s", res.Status, buf.String())
+	}
+}
+
+func rawLogToDTO(r RawLog) *lokiDTO {
+	return &lokiDTO{
+		streams: []streams{
+			{
+				stream: r.metadata,
+				values: [][]string{{r.log}},
+			},
+		},
 	}
 }
 
