@@ -22,6 +22,29 @@ func Test_Build(t *testing.T) {
 	assert.Equal(t, ch, l.logChannel)
 }
 
+func Test_rawLogToDTO(t *testing.T) {
+	expected := &lokiDTO{
+		streams: []streams{
+			{
+				stream: map[string]string{"hello":"world",},
+				values: [][]string{{"hello world"}},
+			},
+		},
+	}
+	
+	r := RawLog{
+		log: "hello world",
+		metadata: map[string]string{
+			"hello": "world",
+		},
+	}
+
+	actual := rawLogToDTO(r)
+
+	assert.Equal(t, expected, actual)
+
+}
+
 func Test_Stream(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -52,29 +75,6 @@ func Test_Stream(t *testing.T) {
 	l.logChannel <- raw
 
 	l.Close()
-}
-
-func Test_serializeBodyErr(t *testing.T) {
-	errCh := make(chan error)
-	l := New().ErrChannel(errCh).Build()
-
-	go utils.HandleErrorStream(errCh)
-	defer close(errCh)
-
-	testCh := make(chan string)
-	l.serializeBody(testCh)
-}
-
-func Test_newLokiRequestErr(t *testing.T) {
-	errCh := make(chan error)
-	l := New().Url("https://").ErrChannel(errCh).Build()
-
-	go utils.HandleErrorStream(errCh)
-	defer close(errCh)
-
-	method := "NOT A METHOD"
-	buf := []byte("hello world")
-	l.newLokiRequest(method, buf)
 }
 
 func Test_sendRequestRespErr(t *testing.T) {

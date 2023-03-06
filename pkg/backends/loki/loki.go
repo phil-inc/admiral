@@ -1,10 +1,10 @@
 package loki
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/phil-inc/admiral/pkg/utils"
 )
 
 type RawLog struct {
@@ -84,35 +84,10 @@ func (l *loki) Stream() {
 	for raw := range l.logChannel {
 		dto := rawLogToDTO(raw)
 
-		body := l.serializeBody(dto)
-		req := l.newLokiRequest("POST", body)
-
-		req.Header.Add("Content-Type", "application/json")
-
-		l.sendRequest(req)
-	}
-}
-
-func (l *loki) serializeBody(raw interface{}) []byte {
-	body, err := json.Marshal(raw)
-	if err != nil {
-		l.errChannel <- err
-	}
-	return body
-}
-
-func (l *loki) newLokiRequest(method string, body []byte) *http.Request {
-	req, err := http.NewRequest(method, l.url, bytes.NewBuffer(body))
-	if err != nil {
-		l.errChannel <- err
-	}
-	return req
-}
-
-func (l *loki) sendRequest(req *http.Request) {
-	_, err := l.client.Do(req)
-	if err != nil {
-		l.errChannel <- err
+		err := utils.Send(dto, "POST", l.url, l.client)
+		if err != nil {
+			l.errChannel <- err
+		}
 	}
 }
 
