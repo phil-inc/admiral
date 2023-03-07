@@ -7,8 +7,9 @@ import (
 )
 
 func Test_SharedMutable(t *testing.T) {
-	s := New()
+	s := New("hello")
 	assert.NotNil(t, s)
+	assert.Equal(t, "hello", s.Cluster())
 
 	time := s.InitTimestamp()
 	assert.NotNil(t, time)

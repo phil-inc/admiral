@@ -3,6 +3,7 @@ package state
 import "time"
 
 type SharedMutable struct {
+	cluster string
 	initTimestamp time.Time
 	objects map[string]string
 	objectChannel chan Request
@@ -11,8 +12,9 @@ type SharedMutable struct {
 // New() instantiates a SharedMutable state and
 // opens the goroutine listening for setObjects
 // requests. Admiral will treat this like a singleton.
-func New() *SharedMutable {
+func New(cluster string) *SharedMutable {
 	s := &SharedMutable{
+		cluster: cluster,
 		initTimestamp: time.Now(),
 		objects: make(map[string]string),
 		objectChannel: make(chan Request),
@@ -36,4 +38,9 @@ func (s *SharedMutable) run() {
 // SharedMutable state was created.
 func (s *SharedMutable) InitTimestamp() time.Time {
 	return s.initTimestamp
+}
+
+// Cluster returns the name of the cluster
+func (s *SharedMutable) Cluster() string {
+	return s.cluster
 }
