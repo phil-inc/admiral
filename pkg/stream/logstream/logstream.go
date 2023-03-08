@@ -11,22 +11,20 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type stream struct {
+type logstream struct {
 	rawLogChannel chan backend.RawLog
-	errChannel chan error
 	state *state.SharedMutable
 	pod *v1.Pod
 	container v1.Container
-	reader io.ReadCloser
+	reader *bufio.Reader
+	stream io.ReadCloser
 }
 
 type builder struct {
 	rawLogChannel chan backend.RawLog
-	errChannel chan error
 	state *state.SharedMutable
 	pod *v1.Pod
 	container v1.Container
-	reader io.ReadCloser
 }
 
 func New() *builder {
@@ -53,80 +51,68 @@ func (b *builder) Pod(pod *v1.Pod) *builder {
 	return b
 }
 
-func (b *builder) ErrChannel(errChannel chan error) *builder {
-	b.errChannel = errChannel
-	return b
-}
-
-func (b *builder) Build() *stream {
-	return &stream{
+func (b *builder) Build() *logstream {
+	return &logstream{
 		rawLogChannel: b.rawLogChannel,
-		errChannel: b.errChannel,
 		state: b.state,
 		pod: b.pod,
 		container: b.container,
 	}
 }
 
-func (s *stream) Stream() {
+func (l *logstream) Stream() {
+	var err error
 	ctx, cancel := context.WithTimeout(context.Background(), 300)
 	defer cancel()
 
-	stream, err := s.state.GetKubeClient().CoreV1().Pods(s.pod.Namespace).GetLogs(s.pod.Name,
+	l.stream, err = l.state.GetKubeClient().CoreV1().Pods(l.pod.Namespace).GetLogs(l.pod.Name,
 						&v1.PodLogOptions{
-							Container: s.container.Name,
+							Container: l.container.Name,
 							Follow: true,
 							Timestamps: false,
 						}).Stream(ctx)
 
 	if err != nil {
-		s.state.Error(err)
+		l.state.Error(err)
 	}
 
-	defer stream.Close()
+	l.reader = bufio.NewReader(l.stream)
+}
 
-	reader := bufio.NewReader(stream)
-
+func (l *logstream) Read() {
 	for {
-		b, err := reader.Peek(1)
+		line, err := l.reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
-			s.state.Error(err)
+			l.state.Error(err)
 		}
 
-		// if the next byte is not a newline, continue
-		if len(b) == 0 || b[0] != '\n' {
-			_, err := reader.ReadBytes('\n')
-			if err != nil {
-				s.state.Error(err)
-			}
+		if line == "" {
 			continue
 		}
 
-		// if the next byte is a newline, read the line
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			s.state.Error(err)
+		msg := strings.TrimSpace(line)
+
+		metadata := make(map[string]string)
+
+		if l.pod.Labels != nil {
+			metadata = l.pod.Labels
 		}
 
-		msg := strings.TrimSpace(line)
-		metadata := s.pod.Labels
-		metadata["pod"] = s.pod.Name
-		metadata["namespace"] = s.pod.Namespace
+		metadata["pod"] = l.pod.Name
+		metadata["namespace"] = l.pod.Namespace
 
 		raw := backend.RawLog{
 			Log: msg,
 			Metadata: metadata,
 		}
 
-		s.rawLogChannel <- raw
+		l.rawLogChannel <- raw
 
 		// discard buffered data 
-		reader.Discard(len(line))
-	}
+	//	l.reader.Discard(len(line))
+	} 
+	l.stream.Close()
 }
