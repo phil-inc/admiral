@@ -3,6 +3,9 @@ package state
 import (
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
 )
 
 type SharedMutable struct {
@@ -12,6 +15,8 @@ type SharedMutable struct {
 	objects map[string]string
 	objectChannel chan request
 	deleteChannel chan string
+	errChannel chan error
+	kubeClient kubernetes.Interface
 }
 
 // New() instantiates a SharedMutable state and
@@ -37,6 +42,7 @@ type request struct {
 func (s *SharedMutable) run() {
 	go s.setHandler()
 	go s.deletionHandler()
+	go s.errorHandler()
 }
 
 func (s *SharedMutable) setHandler() {
@@ -52,6 +58,12 @@ func (s *SharedMutable) deletionHandler() {
 		s.mutex.Lock()
 		delete(s.objects, key)
 		s.mutex.Unlock()
+	}
+}
+
+func (s *SharedMutable) errorHandler() {
+	for err := range s.errChannel {
+		logrus.Errorln(err)
 	}
 }
 
@@ -87,4 +99,24 @@ func (s *SharedMutable) Get(k string) string {
 // run() removes it from the state.
 func (s *SharedMutable) Delete(k string) {
 	s.deleteChannel <- k
+}
+
+// SetKubeClient sets the Kubernetes client.
+func (s *SharedMutable) SetKubeClient(client kubernetes.Interface) {
+	s.kubeClient = client
+}
+
+// GetKubeClient retrieves the Kubernetes client.
+func (s *SharedMutable) GetKubeClient() kubernetes.Interface {
+	return s.kubeClient
+}
+
+// SetErrChannel sets a shared error channel.
+func (s *SharedMutable) SetErrChannel(errChannel chan error) {
+	s.errChannel = errChannel
+}
+
+// Error sends an error to the error channel.
+func (s *SharedMutable) Error(e error) {
+	s.errChannel <- e
 }

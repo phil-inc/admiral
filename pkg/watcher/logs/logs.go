@@ -93,7 +93,7 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 
 		name := generateUniqueContainerName(pod, container)	
 		l.state.Set(name, state.RUNNING)
-		go logstream.New().State(l.state).RawLogChannel(l.rawLogChannel).Build().Start()	
+		go logstream.New().State(l.state).RawLogChannel(l.rawLogChannel).Build().Stream()
 	}
 }
 
