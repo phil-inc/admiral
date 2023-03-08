@@ -4,18 +4,15 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/utils"
 )
 
-type RawLog struct {
-	log      string
-	metadata map[string]string
-}
 
 type Builder struct {
 	url        string
 	client     *http.Client
-	logChannel chan RawLog
+	logChannel chan backend.RawLog
 	errChannel chan error
 }
 
@@ -49,7 +46,7 @@ func (b *Builder) Client(cli *http.Client) *Builder {
 
 // LogChannel injects a channel receiving the log
 // messages that will end up going to Loki in Stream().
-func (b *Builder) LogChannel(l chan RawLog) *Builder {
+func (b *Builder) LogChannel(l chan backend.RawLog) *Builder {
 	b.logChannel = l
 	return b
 }
@@ -64,7 +61,7 @@ func (b *Builder) ErrChannel(e chan error) *Builder {
 type loki struct {
 	url        string
 	client     *http.Client
-	logChannel chan RawLog
+	logChannel chan backend.RawLog
 	errChannel chan error
 	open       chan bool
 }
@@ -91,12 +88,12 @@ func (l *loki) Stream() {
 	}
 }
 
-func rawLogToDTO(r RawLog) *lokiDTO {
+func rawLogToDTO(r backend.RawLog) *lokiDTO {
 	return &lokiDTO{
 		streams: []streams{
 			{
-				stream: r.metadata,
-				values: [][]string{{r.log}},
+				stream: r.Metadata,
+				values: [][]string{{r.Log}},
 			},
 		},
 	}

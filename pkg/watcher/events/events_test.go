@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/phil-inc/admiral/pkg/state"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -21,8 +22,17 @@ func Test_AddHandler(t *testing.T) {
 	msgCh := make(chan string)
 	matchingFilter := []string{"hello-world"}
 	failingFilter := []string{"goodnight"}
+	mocked_event.ObjectMeta.CreationTimestamp.Time = shared_state.InitTimestamp().Add(10)
 
 	event_watcher := New().State(shared_state).Channel(msgCh).Filter(matchingFilter).Build()
+
+	formattedMsg := event_watcher.formatMessage(mocked_event)
+	go func() {
+		for msg := range msgCh {
+			assert.Equal(t, formattedMsg, msg)
+		}
+	}()
+	defer close(msgCh)
 
 	event_watcher.Add(mocked_event)
 	

@@ -6,13 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Build(t *testing.T) {
 	cli := &http.Client{}
-	ch := make(chan RawLog)
+	ch := make(chan backend.RawLog)
 
 	l := New().Client(cli).LogChannel(ch).Url("loki.com").Build()
 
@@ -32,9 +33,9 @@ func Test_rawLogToDTO(t *testing.T) {
 		},
 	}
 	
-	r := RawLog{
-		log: "hello world",
-		metadata: map[string]string{
+	r := backend.RawLog{
+		Log: "hello world",
+		Metadata: map[string]string{
 			"hello": "world",
 		},
 	}
@@ -57,16 +58,16 @@ func Test_Stream(t *testing.T) {
 	}))
 
 	cli := &http.Client{}
-	ch := make(chan RawLog)
+	ch := make(chan backend.RawLog)
 	errCh := make(chan error)
 
 	l := New().ErrChannel(errCh).Url(server.URL).Client(cli).LogChannel(ch).Build()
 
 	go l.Stream()
 
-	raw := RawLog{
-		log: "some log",
-		metadata: map[string]string{
+	raw := backend.RawLog{
+		Log: "some log",
+		Metadata: map[string]string{
 			"hello": "some metadata",
 			"world": "other metadata",
 		},
@@ -85,7 +86,7 @@ func Test_sendRequestRespErr(t *testing.T) {
 	}))
 
 	cli := &http.Client{}
-	ch := make(chan RawLog)
+	ch := make(chan backend.RawLog)
 	errCh := make(chan error)
 
 	l := New().ErrChannel(errCh).Url(server.URL).Client(cli).LogChannel(ch).Build()
@@ -94,9 +95,9 @@ func Test_sendRequestRespErr(t *testing.T) {
 	defer close(errCh)
 	go l.Stream()
 
-	raw := RawLog{
-		log: "some log",
-		metadata: map[string]string{
+	raw := backend.RawLog{
+		Log: "some log",
+		Metadata: map[string]string{
 			"hello": "some metadata",
 			"world": "other metadata",
 		},
