@@ -42,7 +42,6 @@ type request struct {
 func (s *SharedMutable) run() {
 	go s.setHandler()
 	go s.deletionHandler()
-	go s.errorHandler()
 }
 
 func (s *SharedMutable) setHandler() {

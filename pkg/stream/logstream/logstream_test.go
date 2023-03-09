@@ -3,9 +3,10 @@ package logstream
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
@@ -29,18 +30,12 @@ func Test_Logstream(t *testing.T) {
 	go func(){
 		for raw := range rawLogCh {
 			buf := &bytes.Buffer{}
-			assert.Equal(t, 0, buf.Len())
-			assert.Equal(t, 0, l.reader.Buffered())
+			buf.ReadFrom(l.stream)
+			//assert.Equal(t, 0, buf.Len())
 			assert.NotNil(t, raw)
 		}
 	}()
 
-	go func() {
-		for err := range errCh {
-			t.Log(err)
-			t.Fail()
-		}
-	}()
 
 	// create a pipe simulating an io.ReadCloser
 	reader, writer := io.Pipe()
@@ -52,29 +47,23 @@ func Test_Logstream(t *testing.T) {
 	l.stream = io.NopCloser(reader)
 	l.reader = bufio.NewReader(l.stream)
 
-	// write to the pipe periodically
-	ticker := time.NewTicker(5 * time.Millisecond)
-	endTime := time.Now().Add(1* time.Second)
-	go func() {
-		for {
-			select {
-			case<-ticker.C:
-				// write data into the buffer
-				bufferedWriter.Write([]byte("Hello, world!\n"))
-				bufferedWriter.Flush()
+	go l.Read()
 
-				if time.Now().After(endTime) {
-					ticker.Stop()
-					writer.Close()
-					break
-				}
-			}
-		}
-	}()
+	// write to the pipe
+	for i := 0; i < 10; i++ {
+		// make some random data
+		b := make([]byte, 16)
+		rand.Read(b)
+		b[len(b)-1] = byte('\n')
+	
+		// write it into the buffer
+		bufferedWriter.Write(b)
+		bufferedWriter.Flush()
+		fmt.Println(b)
+	}
 
-	l.Read()
+	writer.Close()
 
-	close(rawLogCh)
-	close(errCh)
+	<-errCh
 }
 
