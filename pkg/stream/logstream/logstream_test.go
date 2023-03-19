@@ -2,11 +2,10 @@ package logstream
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/rand"
-	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
@@ -27,15 +26,13 @@ func Test_Logstream(t *testing.T) {
 	l := New().RawLogChannel(rawLogCh).State(st).Container(mocked_container).Pod(mocked_pod).Build()
 	assert.NotNil(t, l)
 
+	results := []backend.RawLog{}
+
 	go func(){
 		for raw := range rawLogCh {
-			buf := &bytes.Buffer{}
-			buf.ReadFrom(l.stream)
-			//assert.Equal(t, 0, buf.Len())
-			assert.NotNil(t, raw)
+			results = append(results, raw)
 		}
 	}()
-
 
 	// create a pipe simulating an io.ReadCloser
 	reader, writer := io.Pipe()
@@ -55,15 +52,18 @@ func Test_Logstream(t *testing.T) {
 		b := make([]byte, 16)
 		rand.Read(b)
 		b[len(b)-1] = byte('\n')
-	
+
 		// write it into the buffer
 		bufferedWriter.Write(b)
 		bufferedWriter.Flush()
-		fmt.Println(b)
 	}
 
-	writer.Close()
+	// give the test a chance to catch up
+	time.Sleep(5 * time.Second)
 
+	writer.Close()
 	<-errCh
+
+	assert.Len(t, results, 10)
 }
 

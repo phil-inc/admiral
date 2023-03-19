@@ -3,7 +3,6 @@ package logstream
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
@@ -81,12 +80,10 @@ func (l *logstream) Stream() {
 }
 
 func (l *logstream) Read() {
-	fmt.Println("enter the read")
 	for {
 		line, err := l.reader.ReadString('\n')
-		fmt.Println(line)
+
 		if err != nil {
-			fmt.Println(err)
 			l.state.Error(err)
 			if err == io.EOF {
 				break
@@ -112,9 +109,10 @@ func (l *logstream) Read() {
 			Log: msg,
 			Metadata: metadata,
 		}
-		fmt.Println("raw")
 
-		l.rawLogChannel <- raw
+		go func() {
+			l.rawLogChannel <- raw
+		}()
 	} 
 	l.stream.Close()
 }
