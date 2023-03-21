@@ -21,7 +21,7 @@ type SharedMutable struct {
 
 // New() instantiates a SharedMutable state and
 // opens the goroutine listening for setObjects
-// requests. Admiral will treat this like a singleton.
+// requests. Admiral assumes this is a singleton.
 func New(cluster string) *SharedMutable {
 	s := &SharedMutable{
 		cluster: cluster,

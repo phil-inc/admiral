@@ -1,11 +1,16 @@
-fargate: true
+---
 cluster: phil-dev-east
-namespace: ""
-logstream:
-  timeout: 1m
-  logstore:
-    local: true
-  apps:
-  - phil-enroll
-ignorecontainers:
-  - datadog-agent
+
+logs:
+  namespace: ""
+  backend:
+    type: local
+  podAnnotation: "admiral.io/logs"
+  ignoreContainerAnnotation: "admiral.io/ignore-containers"
+
+events:
+  namespace: ""
+  backend:
+    type: local
+  filter:
+  - NodeNotReady

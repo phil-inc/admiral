@@ -2,12 +2,18 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/phil-inc/admiral/config"
+	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/phil-inc/admiral/pkg/utils"
+	"github.com/phil-inc/admiral/pkg/watcher/logs"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/informers"
 )
 
 func NewRootCmd() *cobra.Command {
@@ -72,7 +78,32 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 	logrus.Println("Initialized shared mutable state!")
 	logrus.Println("")
 
-	
+	logrus.Println("Initializing kube informer factory...")
+
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
+
+	logrus.Println("\tCreated informer factory...")
+
+	logrus.Println("\tInitializing log watcher...")
+	rawLogCh := make(chan backend.RawLog)
+
+	l := logs.New().State(s).IgnoreContainerAnnotation(cfg.Logs.IgnoreContainerAnnotation).RawLogChannel(rawLogCh).Build()
+	podInformer := informerFactory.Core().V1().Pods()
+
+	err = InitWatcher(l, podInformer.Informer())
+	if err != nil {
+		return err
+	}
+
+	stop := make(chan struct{})
+	defer close(stop)
+
+	informerFactory.Start(stop)
+
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGTERM)
+	signal.Notify(sigterm, syscall.SIGINT)
+	<-sigterm
 
 	return nil
 }

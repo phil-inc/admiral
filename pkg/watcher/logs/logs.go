@@ -60,8 +60,8 @@ func (l *logs) Add(obj interface{}) {
 	l.addContainersToState(pod)
 }
 
-func (l *logs) Update(obj interface{}) {
-	pod := obj.(*v1.Pod)
+func (l *logs) Update(old, new interface{}) {
+	pod := new.(*v1.Pod)
 
 	// check if the pod is running
 	if pod.Status.Phase == v1.PodRunning {
@@ -85,7 +85,6 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 	ignoreList := pod.Annotations[l.ignoreContainerAnnotation]
 
 	for _, container := range pod.Spec.Containers {
-
 
 		if ignoreContainer(ignoreList, container) {
 			continue
