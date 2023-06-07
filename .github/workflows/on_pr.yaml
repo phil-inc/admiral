@@ -18,3 +18,13 @@ jobs:
       tag: ${{ needs.generate_tag.outputs.tag }}
       push: true
       notify: true
+  build_push_ecr:
+    uses: phil-inc/public-actions/.github/workflows/build_push_ecr.yaml@master
+    needs: generate_tag
+    if: needs.generate_tag.outputs.tag != ''
+    secrets: inherit
+    with:
+      name: admiral
+      tag: ${{ needs.generate_tag.outputs.tag }}
+      push: true
+      notify: false
