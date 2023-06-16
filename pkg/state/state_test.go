@@ -25,11 +25,10 @@ func Test_SharedMutable(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 	assert.Equal(t, "", s.Get("hello"))
 
-
 	s.SetKubeClient(fake.NewSimpleClientset())
 	assert.NotNil(t, s.GetKubeClient())
 
 	errCh := make(chan error)
 	s.SetErrChannel(errCh)
-	s.Error(fmt.Errorf("test fail"))
+	go s.Error(fmt.Errorf("test fail"))
 }

@@ -24,11 +24,11 @@ func Test_Build(t *testing.T) {
 
 func Test_Stream(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		b, err := ioutil.ReadAll(r.Body)
 		assert.Nil(t, err)
-		assert.Contains(t, "some event", b)
+		assert.Contains(t, string(b), "some event")
 	}))
 
 	cli := &http.Client{}

@@ -25,14 +25,14 @@ func Test_Build(t *testing.T) {
 
 func Test_rawLogToDTO(t *testing.T) {
 	expected := &lokiDTO{
-		streams: []streams{
+		Streams: []streams{
 			{
-				stream: map[string]string{"hello":"world",},
-				values: [][]string{{"hello world"}},
+				Stream: map[string]string{"hello": "world"},
+				Values: [][]string{{"hello world"}},
 			},
 		},
 	}
-	
+
 	r := backend.RawLog{
 		Log: "hello world",
 		Metadata: map[string]string{
@@ -48,13 +48,14 @@ func Test_rawLogToDTO(t *testing.T) {
 
 func Test_Stream(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		b, err := ioutil.ReadAll(r.Body)
+
 		assert.Nil(t, err)
-		assert.Contains(t, b, "some log")
-		assert.Contains(t, b, "some metadata")
-		assert.Contains(t, b, "other metadata")
+		assert.Contains(t, string(b), "some log")
+		assert.Contains(t, string(b), "some metadata")
+		assert.Contains(t, string(b), "other metadata")
 	}))
 
 	cli := &http.Client{}

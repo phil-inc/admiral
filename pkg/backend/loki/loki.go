@@ -8,7 +8,6 @@ import (
 	"github.com/phil-inc/admiral/pkg/utils"
 )
 
-
 type Builder struct {
 	url        string
 	client     *http.Client
@@ -67,12 +66,12 @@ type loki struct {
 }
 
 type lokiDTO struct {
-	streams []streams `json:"streams"`
+	Streams []streams `json:"streams"`
 }
 
 type streams struct {
-	stream map[string]string `json:"stream"`
-	values [][]string        `json:"values"`
+	Stream map[string]string `json:"stream"`
+	Values [][]string        `json:"values"`
 }
 
 // Stream does a POST request of the logChannel
@@ -90,10 +89,10 @@ func (l *loki) Stream() {
 
 func rawLogToDTO(r backend.RawLog) *lokiDTO {
 	return &lokiDTO{
-		streams: []streams{
+		Streams: []streams{
 			{
-				stream: r.Metadata,
-				values: [][]string{{r.Log}},
+				Stream: r.Metadata,
+				Values: [][]string{{r.Log}},
 			},
 		},
 	}

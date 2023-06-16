@@ -40,4 +40,3 @@ func GetRestConfig() (*rest.Config, error) {
 	}
 	return config, err
 }
-

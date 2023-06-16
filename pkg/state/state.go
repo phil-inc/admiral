@@ -9,14 +9,14 @@ import (
 )
 
 type SharedMutable struct {
-	mutex sync.Mutex
-	cluster string
+	mutex         sync.Mutex
+	cluster       string
 	initTimestamp time.Time
-	objects map[string]string
+	objects       map[string]string
 	objectChannel chan request
 	deleteChannel chan string
-	errChannel chan error
-	kubeClient kubernetes.Interface
+	errChannel    chan error
+	kubeClient    kubernetes.Interface
 }
 
 // New() instantiates a SharedMutable state and
@@ -24,9 +24,9 @@ type SharedMutable struct {
 // requests. Admiral assumes this is a singleton.
 func New(cluster string) *SharedMutable {
 	s := &SharedMutable{
-		cluster: cluster,
+		cluster:       cluster,
 		initTimestamp: time.Now(),
-		objects: make(map[string]string),
+		objects:       make(map[string]string),
 		objectChannel: make(chan request),
 		deleteChannel: make(chan string),
 	}
@@ -35,7 +35,7 @@ func New(cluster string) *SharedMutable {
 }
 
 type request struct {
-	Key string
+	Key   string
 	Value string
 }
 
@@ -66,7 +66,7 @@ func (s *SharedMutable) errorHandler() {
 	}
 }
 
-//InitTimestamp returns the timestamp of when the
+// InitTimestamp returns the timestamp of when the
 // SharedMutable state was created.
 func (s *SharedMutable) InitTimestamp() time.Time {
 	return s.initTimestamp
@@ -81,7 +81,7 @@ func (s *SharedMutable) Cluster() string {
 // channel where run() adds it to the state.
 func (s *SharedMutable) Set(k string, v string) {
 	r := request{
-		Key: k,
+		Key:   k,
 		Value: v,
 	}
 	s.objectChannel <- r

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,9 +9,14 @@ import (
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/backend"
+	"github.com/phil-inc/admiral/pkg/backend/gchat"
+	"github.com/phil-inc/admiral/pkg/backend/local"
+	"github.com/phil-inc/admiral/pkg/backend/loki"
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/phil-inc/admiral/pkg/utils"
+	"github.com/phil-inc/admiral/pkg/watcher/events"
 	"github.com/phil-inc/admiral/pkg/watcher/logs"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/informers"
@@ -18,7 +24,7 @@ import (
 
 func NewRootCmd() *cobra.Command {
 	return &cobra.Command{
-		Use: "admiral",
+		Use:   "admiral",
 		Short: "Watch Kubernetes and stream to a backend",
 		Long: `
 		admiral is a set of Kubernetes controllers that will
@@ -43,7 +49,7 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	logrus.Println("\tOpening %s...", path)
+	logrus.Printf("\tOpening %s...", path)
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -84,15 +90,64 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 
 	logrus.Println("\tCreated informer factory...")
 
-	logrus.Println("\tInitializing log watcher...")
+	logrus.Println("\tInitializing watchers..")
+
 	rawLogCh := make(chan backend.RawLog)
+	eventCh := make(chan string)
 
-	l := logs.New().State(s).IgnoreContainerAnnotation(cfg.Logs.IgnoreContainerAnnotation).RawLogChannel(rawLogCh).Build()
-	podInformer := informerFactory.Core().V1().Pods()
+	httpCli := &http.Client{}
 
-	err = InitWatcher(l, podInformer.Informer())
-	if err != nil {
-		return err
+	for _, w := range cfg.Watchers {
+		var scopedBackend backend.Backend
+
+		switch w.Backend.Type {
+
+		case "loki":
+			scopedBackend = loki.New().Url(w.Backend.URL).LogChannel(rawLogCh).ErrChannel(errCh).Client(httpCli).Build()
+
+		case "gchat":
+			scopedBackend = gchat.New().Url(w.Backend.URL).TextChannel(eventCh).ErrChannel(errCh).Client(httpCli).Build()
+
+		case "local":
+			scopedBackend = local.New().LogChannel(rawLogCh).ErrChannel(errCh).Build()
+
+		case "":
+			break
+
+		default:
+			return errors.Errorf("invalid type in backend: %s", w.Backend.Type)
+		}
+
+		if scopedBackend != nil {
+			go scopedBackend.Stream()
+		}
+
+		switch w.Type {
+
+		case "logs":
+			l := logs.New().State(s).IgnoreContainerAnnotation(w.IgnoreContainerAnnotation).RawLogChannel(rawLogCh).Build()
+
+			podInformer := informerFactory.Core().V1().Pods()
+
+			err = InitWatcher(l, podInformer.Informer())
+			if err != nil {
+				return err
+			}
+
+		case "events":
+			e := events.New().State(s).Filter(w.Filter).Channel(eventCh).Build()
+
+			eventInformer := informerFactory.Core().V1().Events()
+
+			err = InitWatcher(e, eventInformer.Informer())
+			if err != nil {
+				return err
+			}
+
+		default:
+			return errors.Errorf("invalid type in watcher: %s", w.Type)
+
+		}
 	}
 
 	stop := make(chan struct{})

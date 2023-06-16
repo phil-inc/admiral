@@ -8,10 +8,10 @@ import (
 func InitWatcher(w watcher.Watcher, i cache.SharedIndexInformer) error {
 	i.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: w.Add,
+			AddFunc:    w.Add,
 			UpdateFunc: w.Update,
 			DeleteFunc: w.Delete,
 		},
-	)	
+	)
 	return nil
 }

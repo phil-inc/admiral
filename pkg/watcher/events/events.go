@@ -8,15 +8,15 @@ import (
 )
 
 type events struct {
-	state *state.SharedMutable
+	state   *state.SharedMutable
 	channel chan string
-	filter []string
+	filter  []string
 }
 
 type builder struct {
-	state *state.SharedMutable
-	channel chan string 
-	filter []string
+	state   *state.SharedMutable
+	channel chan string
+	filter  []string
 }
 
 func New() *builder {
@@ -44,9 +44,9 @@ func (b *builder) Filter(filter []string) *builder {
 
 func (b *builder) Build() *events {
 	return &events{
-		state: b.state,
+		state:   b.state,
 		channel: b.channel,
-		filter: b.filter,
+		filter:  b.filter,
 	}
 }
 
@@ -56,12 +56,11 @@ func (b *builder) Build() *events {
 func (e *events) Add(obj interface{}) {
 	event := obj.(*v1.Event)
 
-	// check if the event was created
-	// before admiral started.
+	// check if the event was created before admiral started.
 	if e.state.InitTimestamp().Before(event.ObjectMeta.CreationTimestamp.Time) {
 		if e.inFilter(event.Message) {
 			e.channel <- e.formatMessage(event)
-		}	
+		}
 	}
 }
 
@@ -81,9 +80,9 @@ func (e *events) formatMessage(event *v1.Event) string {
 						reason: %s \n
 						message: %s \n
 						timestamp: %s \n`,
-	e.state.Cluster(), event.Namespace, event.InvolvedObject.Name, event.Reason, event.Message, event.CreationTimestamp.Time)
+		e.state.Cluster(), event.Namespace, event.InvolvedObject.Name, event.Reason, event.Message, event.CreationTimestamp.Time)
 }
 
-func Update(obj interface{}) {}
+func (e *events) Update(new interface{}, old interface{}) {}
 
-func Delete(obj interface{}) {}
+func (e *events) Delete(obj interface{}) {}

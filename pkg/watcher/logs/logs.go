@@ -11,15 +11,17 @@ import (
 )
 
 type logs struct {
-	state *state.SharedMutable
+	state                     *state.SharedMutable
 	ignoreContainerAnnotation string
-	rawLogChannel chan backend.RawLog	
+	podFilterAnnotation       string
+	rawLogChannel             chan backend.RawLog
 }
 
 type builder struct {
-	state *state.SharedMutable
+	state                     *state.SharedMutable
 	ignoreContainerAnnotation string
-	rawLogChannel chan backend.RawLog	
+	podFilterAnnotation       string
+	rawLogChannel             chan backend.RawLog
 }
 
 func New() *builder {
@@ -27,12 +29,17 @@ func New() *builder {
 }
 
 func (b *builder) State(state *state.SharedMutable) *builder {
-	b.state = state	
+	b.state = state
 	return b
 }
 
 func (b *builder) IgnoreContainerAnnotation(annotation string) *builder {
-	b.ignoreContainerAnnotation = annotation 
+	b.ignoreContainerAnnotation = annotation
+	return b
+}
+
+func (b *builder) PodFilterAnnotation(annotation string) *builder {
+	b.podFilterAnnotation = annotation
 	return b
 }
 
@@ -43,14 +50,19 @@ func (b *builder) RawLogChannel(rawLogChannel chan backend.RawLog) *builder {
 
 func (b *builder) Build() *logs {
 	return &logs{
-		state: b.state,
+		state:                     b.state,
 		ignoreContainerAnnotation: b.ignoreContainerAnnotation,
-		rawLogChannel: b.rawLogChannel,
+		podFilterAnnotation:       b.podFilterAnnotation,
+		rawLogChannel:             b.rawLogChannel,
 	}
 }
 
 func (l *logs) Add(obj interface{}) {
 	pod := obj.(*v1.Pod)
+
+	if _, ok := pod.Annotations[l.podFilterAnnotation]; !ok {
+		return
+	}
 
 	// check if the pod is running
 	if pod.Status.Phase != v1.PodRunning {
@@ -63,6 +75,10 @@ func (l *logs) Add(obj interface{}) {
 func (l *logs) Update(old, new interface{}) {
 	pod := new.(*v1.Pod)
 
+	if _, ok := pod.Annotations[l.podFilterAnnotation]; !ok {
+		return
+	}
+
 	// check if the pod is running
 	if pod.Status.Phase == v1.PodRunning {
 		l.addContainersToState(pod)
@@ -70,13 +86,17 @@ func (l *logs) Update(old, new interface{}) {
 
 	// check if the pod is finishing
 	if pod.Status.Phase == v1.PodSucceeded ||
-	   pod.Status.Phase == v1.PodFailed {
+		pod.Status.Phase == v1.PodFailed {
 		l.finishContainersInState(pod)
 	}
 }
 
 func (l *logs) Delete(obj interface{}) {
 	pod := obj.(*v1.Pod)
+
+	if _, ok := pod.Annotations[l.podFilterAnnotation]; !ok {
+		return
+	}
 
 	l.deleteContainersInState(pod)
 }
@@ -90,9 +110,12 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 			continue
 		}
 
-		name := generateUniqueContainerName(pod, container)	
+		name := generateUniqueContainerName(pod, container)
 		l.state.Set(name, state.RUNNING)
-		go logstream.New().State(l.state).RawLogChannel(l.rawLogChannel).Build().Stream()
+
+		if l.state.GetKubeClient() != nil {
+			go logstream.New().State(l.state).RawLogChannel(l.rawLogChannel).Build().Stream()
+		}
 	}
 }
 
@@ -120,7 +143,7 @@ func (l *logs) deleteContainersInState(pod *v1.Pod) {
 		}
 
 		name := generateUniqueContainerName(pod, container)
-		l.state.Delete(name)	
+		l.state.Delete(name)
 	}
 }
 

@@ -9,10 +9,10 @@ import (
 )
 
 var mocked_event *v1.Event = &v1.Event{
-	Reason: "hello-world",
+	Reason:  "hello-world",
 	Message: "hello-world",
 	InvolvedObject: v1.ObjectReference{
-		Name: "hello-world",
+		Name:      "hello-world",
 		Namespace: "hello-world",
 	},
 }
@@ -35,7 +35,7 @@ func Test_AddHandler(t *testing.T) {
 	defer close(msgCh)
 
 	event_watcher.Add(mocked_event)
-	
+
 	failing_watcher := New().State(shared_state).Channel(msgCh).Filter(failingFilter).Build()
 
 	failing_watcher.Add(mocked_event)

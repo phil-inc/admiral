@@ -6,16 +6,16 @@ import (
 	"github.com/phil-inc/admiral/pkg/utils"
 )
 
-type Builder struct{
-	url string
-	client *http.Client
+type Builder struct {
+	url         string
+	client      *http.Client
 	textChannel chan string
-	errChannel chan error
+	errChannel  chan error
 }
 
 // New returns a builder for the gchat struct.
 func New() *Builder {
-	return &Builder {}
+	return &Builder{}
 }
 
 // Url sets the gchat url.
@@ -46,19 +46,19 @@ func (b *Builder) Client(client *http.Client) *Builder {
 
 // Build returns a configured gchat struct.
 func (b *Builder) Build() *gchat {
-	return &gchat {
-		url: b.url,
-		client: b.client,
+	return &gchat{
+		url:         b.url,
+		client:      b.client,
 		textChannel: b.textChannel,
-		errChannel: b.errChannel,
+		errChannel:  b.errChannel,
 	}
 }
 
 type gchat struct {
-	url string
-	client *http.Client
+	url         string
+	client      *http.Client
 	textChannel chan string
-	errChannel chan error
+	errChannel  chan error
 }
 
 type gchatDTO struct {
@@ -69,7 +69,7 @@ type gchatDTO struct {
 // on textChannel, then POSTs it to gchat.
 func (g *gchat) Stream() {
 	for msg := range g.textChannel {
-		dto := msgToDTO(msg)	
+		dto := msgToDTO(msg)
 
 		err := utils.Send(dto, "POST", g.url, g.client)
 		if err != nil {
@@ -89,4 +89,3 @@ func msgToDTO(text string) *gchatDTO {
 func (g *gchat) Close() {
 	close(g.textChannel)
 }
-

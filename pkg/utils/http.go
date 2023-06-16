@@ -18,7 +18,6 @@ func Send(data interface{}, method string, url string, client *http.Client) erro
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-
 	_, err = client.Do(req)
 	if err != nil {
 		return err

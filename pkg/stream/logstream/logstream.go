@@ -13,18 +13,18 @@ import (
 
 type logstream struct {
 	rawLogChannel chan backend.RawLog
-	state *state.SharedMutable
-	pod *v1.Pod
-	container v1.Container
-	reader *bufio.Reader
-	stream io.ReadCloser
+	state         *state.SharedMutable
+	pod           *v1.Pod
+	container     v1.Container
+	reader        *bufio.Reader
+	stream        io.ReadCloser
 }
 
 type builder struct {
 	rawLogChannel chan backend.RawLog
-	state *state.SharedMutable
-	pod *v1.Pod
-	container v1.Container
+	state         *state.SharedMutable
+	pod           *v1.Pod
+	container     v1.Container
 }
 
 func New() *builder {
@@ -54,9 +54,9 @@ func (b *builder) Pod(pod *v1.Pod) *builder {
 func (b *builder) Build() *logstream {
 	return &logstream{
 		rawLogChannel: b.rawLogChannel,
-		state: b.state,
-		pod: b.pod,
-		container: b.container,
+		state:         b.state,
+		pod:           b.pod,
+		container:     b.container,
 	}
 }
 
@@ -66,11 +66,11 @@ func (l *logstream) Stream() {
 	defer cancel()
 
 	l.stream, err = l.state.GetKubeClient().CoreV1().Pods(l.pod.Namespace).GetLogs(l.pod.Name,
-						&v1.PodLogOptions{
-							Container: l.container.Name,
-							Follow: true,
-							Timestamps: false,
-						}).Stream(ctx)
+		&v1.PodLogOptions{
+			Container:  l.container.Name,
+			Follow:     true,
+			Timestamps: false,
+		}).Stream(ctx)
 
 	if err != nil {
 		l.state.Error(err)
@@ -106,13 +106,13 @@ func (l *logstream) Read() {
 		metadata["namespace"] = l.pod.Namespace
 
 		raw := backend.RawLog{
-			Log: msg,
+			Log:      msg,
 			Metadata: metadata,
 		}
 
 		go func() {
 			l.rawLogChannel <- raw
 		}()
-	} 
+	}
 	l.stream.Close()
 }

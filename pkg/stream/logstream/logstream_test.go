@@ -28,7 +28,7 @@ func Test_Logstream(t *testing.T) {
 
 	results := []backend.RawLog{}
 
-	go func(){
+	go func() {
 		for raw := range rawLogCh {
 			results = append(results, raw)
 		}
@@ -66,4 +66,3 @@ func Test_Logstream(t *testing.T) {
 
 	assert.Len(t, results, 10)
 }
-
