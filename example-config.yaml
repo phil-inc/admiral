@@ -1,15 +1,15 @@
 ---
 cluster: phil-dev-east
 
-globals:
-  backend:
-    type: local
-
 watchers:
 - type: logs
-  podAnnotation: "admiral.io/logs"
+  podFilterAnnotation: "admiral.io/logs"
   ignoreContainerAnnotation: "admiral.io/ignore-containers"
+  backend:
+    type: local
 
 - type: events
   filter:
   - NodeNotReady
+  backend:
+    type: local

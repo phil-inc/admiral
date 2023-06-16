@@ -7,6 +7,7 @@ import (
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/phil-inc/admiral/pkg/stream/logstream"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -111,16 +112,27 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 		}
 
 		name := generateUniqueContainerName(pod, container)
+
+		if v := l.state.Get(name); v != "" {
+			continue
+		}
+
+		logrus.Println("Adding to state")
+		logrus.Printf("\tPod: %s", pod.Name)
+		logrus.Printf("\tContainer: %s", container.Name)
+
 		l.state.Set(name, state.RUNNING)
 
 		if l.state.GetKubeClient() != nil {
-			go logstream.New().State(l.state).RawLogChannel(l.rawLogChannel).Build().Stream()
+			go logstream.New().State(l.state).Pod(pod).Container(container).RawLogChannel(l.rawLogChannel).Build().Stream()
 		}
 	}
 }
 
 func (l *logs) finishContainersInState(pod *v1.Pod) {
 	ignoreList := pod.Annotations[l.ignoreContainerAnnotation]
+
+	fmt.Println("finish")
 
 	for _, container := range pod.Spec.Containers {
 
@@ -130,12 +142,17 @@ func (l *logs) finishContainersInState(pod *v1.Pod) {
 
 		name := generateUniqueContainerName(pod, container)
 		l.state.Set(name, state.FINISHED)
+
+		logrus.Println("Finishing state")
+		logrus.Printf("\tPod: %s", pod.Name)
+		logrus.Printf("\tContainer: %s", container.Name)
 	}
 }
 
 func (l *logs) deleteContainersInState(pod *v1.Pod) {
 	ignoreList := pod.Annotations[l.ignoreContainerAnnotation]
 
+	fmt.Println("delete")
 	for _, container := range pod.Spec.Containers {
 
 		if ignoreContainer(ignoreList, container) {
@@ -144,6 +161,10 @@ func (l *logs) deleteContainersInState(pod *v1.Pod) {
 
 		name := generateUniqueContainerName(pod, container)
 		l.state.Delete(name)
+
+		logrus.Println("Setting state deleted")
+		logrus.Printf("\t\tPod: %s", pod.Name)
+		logrus.Printf("\tContainer: %s", container.Name)
 	}
 }
 

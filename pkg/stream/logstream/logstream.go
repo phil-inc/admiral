@@ -62,8 +62,7 @@ func (b *builder) Build() *logstream {
 
 func (l *logstream) Stream() {
 	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), 300)
-	defer cancel()
+	ctx := context.Background()
 
 	l.stream, err = l.state.GetKubeClient().CoreV1().Pods(l.pod.Namespace).GetLogs(l.pod.Name,
 		&v1.PodLogOptions{
@@ -77,6 +76,7 @@ func (l *logstream) Stream() {
 	}
 
 	l.reader = bufio.NewReader(l.stream)
+	l.Read()
 }
 
 func (l *logstream) Read() {

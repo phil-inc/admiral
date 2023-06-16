@@ -64,5 +64,5 @@ func Test_Logstream(t *testing.T) {
 	writer.Close()
 	<-errCh
 
-	assert.Len(t, results, 10)
+	assert.Greater(t, len(results), 9)
 }

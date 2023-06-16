@@ -9,7 +9,7 @@ import (
 )
 
 type SharedMutable struct {
-	mutex         sync.Mutex
+	mutex         sync.RWMutex
 	cluster       string
 	initTimestamp time.Time
 	objects       map[string]string
@@ -88,10 +88,11 @@ func (s *SharedMutable) Set(k string, v string) {
 }
 
 // Get returns a value for the given key.
-func (s *SharedMutable) Get(k string) string {
+func (s *SharedMutable) Get(k string) (val string) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.objects[k]
+	val = s.objects[k]
+	s.mutex.Unlock()
+	return val
 }
 
 // Delete sends a key to the deletion channel where

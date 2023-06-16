@@ -9,9 +9,6 @@ import (
 
 	"github.com/phil-inc/admiral/config"
 	"github.com/phil-inc/admiral/pkg/backend"
-	"github.com/phil-inc/admiral/pkg/backend/gchat"
-	"github.com/phil-inc/admiral/pkg/backend/local"
-	"github.com/phil-inc/admiral/pkg/backend/loki"
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/phil-inc/admiral/pkg/watcher/events"
@@ -35,6 +32,7 @@ func NewRootCmd() *cobra.Command {
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				logrus.Printf("No argument(s) found -- starting up in monolith mode")
+				logrus.Println("")
 			}
 			return cobra.OnlyValidArgs(cmd, args)
 		},
@@ -44,7 +42,7 @@ func NewRootCmd() *cobra.Command {
 
 func RootCmd(cmd *cobra.Command, args []string) error {
 	logrus.Println("Loading config...")
-	path, err := cmd.Flags().GetString("path")
+	path, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return err
 	}
@@ -88,9 +86,7 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
 
-	logrus.Println("\tCreated informer factory...")
-
-	logrus.Println("\tInitializing watchers..")
+	logrus.Println("\tInitializing watchers...")
 
 	rawLogCh := make(chan backend.RawLog)
 	eventCh := make(chan string)
@@ -98,51 +94,52 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 	httpCli := &http.Client{}
 
 	for _, w := range cfg.Watchers {
-		var scopedBackend backend.Backend
-
-		switch w.Backend.Type {
-
-		case "loki":
-			scopedBackend = loki.New().Url(w.Backend.URL).LogChannel(rawLogCh).ErrChannel(errCh).Client(httpCli).Build()
-
-		case "gchat":
-			scopedBackend = gchat.New().Url(w.Backend.URL).TextChannel(eventCh).ErrChannel(errCh).Client(httpCli).Build()
-
-		case "local":
-			scopedBackend = local.New().LogChannel(rawLogCh).ErrChannel(errCh).Build()
-
-		case "":
-			break
-
-		default:
-			return errors.Errorf("invalid type in backend: %s", w.Backend.Type)
-		}
-
-		if scopedBackend != nil {
-			go scopedBackend.Stream()
-		}
 
 		switch w.Type {
 
 		case "logs":
-			l := logs.New().State(s).IgnoreContainerAnnotation(w.IgnoreContainerAnnotation).RawLogChannel(rawLogCh).Build()
+			l := logs.New().State(s).PodFilterAnnotation(w.PodFilterAnnotation).IgnoreContainerAnnotation(w.IgnoreContainerAnnotation).RawLogChannel(rawLogCh).Build()
 
 			podInformer := informerFactory.Core().V1().Pods()
+
+			logrus.Println("\t\tLog informer created")
+
+			err = InitBackend(rawLogCh, nil, errCh, httpCli, w.Backend.Type, w.Backend.URL)
+			if err != nil {
+				return err
+			}
+
+			logrus.Printf("\t\t%s backend initialized", w.Backend.Type)
 
 			err = InitWatcher(l, podInformer.Informer())
 			if err != nil {
 				return err
 			}
 
+			logrus.Println("\t\tLog informer initialized")
+			logrus.Println("")
+
 		case "events":
 			e := events.New().State(s).Filter(w.Filter).Channel(eventCh).Build()
 
 			eventInformer := informerFactory.Core().V1().Events()
 
+			logrus.Println("\t\tEvent informer created")
+
+			err = InitBackend(nil, eventCh, errCh, httpCli, w.Backend.Type, w.Backend.URL)
+			if err != nil {
+				return err
+			}
+
+			logrus.Printf("\t\t%s backend initialized", w.Backend.Type)
+
 			err = InitWatcher(e, eventInformer.Informer())
 			if err != nil {
 				return err
 			}
+
+			logrus.Println("\t\tLog informer initialized")
+			logrus.Println("")
 
 		default:
 			return errors.Errorf("invalid type in watcher: %s", w.Type)
@@ -150,10 +147,15 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	logrus.Println("Watchers: Initialized")
+	logrus.Println("Backends: Initialized")
+
 	stop := make(chan struct{})
 	defer close(stop)
 
 	informerFactory.Start(stop)
+	logrus.Println("Admiral: Ready")
+	logrus.Println("")
 
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)

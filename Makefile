@@ -1,5 +1,5 @@
 build: tidy fmt test
-	CGO_ENABLED=0 GOOS=linux go build -o out/admiral ./cmd && chmod +x out/admiral
+	CGO_ENABLED=0 go build -o out/admiral ./cmd && chmod +x out/admiral
 
 test:
 	go test ./... -cover -v

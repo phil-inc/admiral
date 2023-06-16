@@ -19,7 +19,7 @@ type globals struct {
 type watcher struct {
 	Type                      string   `yaml:"type"`
 	Backend                   backend  `yaml:"backend"`
-	PodAnnotation             string   `yaml:"podAnnotation"`
+	PodFilterAnnotation       string   `yaml:"podFilterAnnotation"`
 	IgnoreContainerAnnotation string   `yaml:"ignoreContainerAnnotation"`
 	Filter                    []string `yaml:"filter"`
 }
