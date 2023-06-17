@@ -5,6 +5,7 @@ on:
       - master
     tags:
       - 'v.*.*'
+      - 'feature/*'
   pull_request:
 
 concurrency:
