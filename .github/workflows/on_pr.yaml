@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  generate-tag:
+  generate_tag:
     uses: phil-inc/public-actions/.github/workflows/generate_tag.yaml@master
   build_push:
     uses: phil-inc/public-actions/.github/workflows/build_push.yaml@master
