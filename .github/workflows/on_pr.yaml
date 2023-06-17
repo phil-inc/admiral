@@ -7,8 +7,6 @@ on:
       - 'v.*.*'
       - 'feature/*'
   pull_request:
-    branches-ignore:
-      - 'feature/*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request_number || github.ref }}
