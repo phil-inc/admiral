@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - 'v.*.*'
   pull_request:
 
 concurrency:
@@ -20,5 +22,5 @@ jobs:
     with:
       name: admiral
       tag: ${{ needs.generate_tag.outputs.tag }}
-      push: true
+      push: ${{ github.event_name != 'pull_request' }}
       notify: true
