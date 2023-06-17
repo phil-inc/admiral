@@ -3,9 +3,9 @@ on:
   push:
     branches:
       - master
+      - 'feature/*'
     tags:
       - 'v.*.*'
-      - 'feature/*'
   pull_request:
 
 concurrency:
