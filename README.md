@@ -12,11 +12,7 @@ routine Kubernetes operations.
 
 ## Available features
 
-- Observe the following kinds of Kubernetes Events
-    - Kill (scheduled pod death)
-    - BackOff (unscheduled pod timeout)
-    - NodeNotReady (unscheduled node failure)
-    - Unhealthy (unscheduled pod failure)
+- Observe all kinds of Kubernetes Events
 - Send messages to a webhook
 - Stream logs from pods to a logstore (currently supports Grafana Loki)
 
