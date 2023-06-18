@@ -11,10 +11,18 @@ import (
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var mocked_pod = &v1.Pod{}
-var mocked_container = v1.Container{}
+var mocked_pod = &v1.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "hello",
+		Namespace: "world",
+	},
+}
+var mocked_container = v1.Container{
+	Name: "hello",
+}
 
 func Test_Logstream(t *testing.T) {
 	st := state.New("test-cluster")

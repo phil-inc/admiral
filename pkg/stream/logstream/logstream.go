@@ -3,6 +3,8 @@ package logstream
 import (
 	"bufio"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -64,6 +66,11 @@ func (l *logstream) Stream() {
 	var err error
 	ctx := context.Background()
 
+	if l.state.GetKubeClient() == nil {
+		l.state.Error(errors.New("missing kube client"))
+		return
+	}
+
 	l.stream, err = l.state.GetKubeClient().CoreV1().Pods(l.pod.Namespace).GetLogs(l.pod.Name,
 		&v1.PodLogOptions{
 			Container:  l.container.Name,
@@ -87,6 +94,7 @@ func (l *logstream) Read() {
 		if err != nil {
 			l.state.Error(err)
 			if err == io.EOF {
+				fmt.Println("da")
 				l.Stream()
 			}
 		}
