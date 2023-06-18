@@ -73,6 +73,7 @@ func (l *logstream) Stream() {
 
 	if err != nil {
 		l.state.Error(err)
+		return
 	}
 
 	l.reader = bufio.NewReader(l.stream)
@@ -86,7 +87,7 @@ func (l *logstream) Read() {
 		if err != nil {
 			l.state.Error(err)
 			if err == io.EOF {
-				break
+				l.Stream()
 			}
 		}
 
