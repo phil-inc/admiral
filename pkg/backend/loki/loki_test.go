@@ -42,7 +42,8 @@ func Test_rawLogToDTO(t *testing.T) {
 
 	actual := rawLogToDTO(r)
 
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, expected.Streams[0].Stream, actual.Streams[0].Stream)
+	assert.Equal(t, expected.Streams[0].Values[0][0], actual.Streams[0].Values[0][1])
 
 }
 

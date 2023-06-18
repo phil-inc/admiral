@@ -52,7 +52,8 @@ func (l *local) Stream() {
 
 func (l *local) streamLogs() {
 	for raw := range l.logChannel {
-		fmt.Println(raw.Log)
+		// fmt.Println(raw.Log)
+		fmt.Println(raw.Metadata)
 	}
 }
 
