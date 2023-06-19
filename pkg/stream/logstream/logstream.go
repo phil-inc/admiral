@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type logstream struct {
@@ -62,7 +63,7 @@ func (b *builder) Build() *logstream {
 	}
 }
 
-func (l *logstream) Stream() {
+func (l *logstream) Stream(since *metav1.Time) {
 	var err error
 	ctx := context.Background()
 
@@ -76,6 +77,7 @@ func (l *logstream) Stream() {
 			Container:  l.container.Name,
 			Follow:     true,
 			Timestamps: false,
+			SinceTime:  since,
 		}).Stream(ctx)
 
 	if err != nil {
@@ -92,11 +94,12 @@ func (l *logstream) Read() {
 		line, err := l.reader.ReadString('\n')
 
 		if err != nil {
-			l.state.Error(err)
 			if err == io.EOF {
-				fmt.Println("da")
-				l.Stream()
+				t := metav1.NewTime(time.Now())
+				go l.Stream(t.DeepCopy())
+				return
 			}
+			l.state.Error(err)
 		}
 
 		if line == "" {
