@@ -64,7 +64,7 @@ func Test_Handlers(t *testing.T) {
 	mocked_pod.Status.Phase = v1.PodFailed
 	log_watcher.Update(mocked_pod, mocked_pod)
 	time.Sleep(1 * time.Millisecond)
-	assert.Equal(t, state.FINISHED, st.Get(stateKey))
+	assert.Equal(t, "", st.Get(stateKey))
 
 	mocked_pod.ObjectMeta.Annotations["admiral.io/ignore-containers"] = "world"
 	mocked_pod.Status.Phase = v1.PodSucceeded
@@ -72,7 +72,7 @@ func Test_Handlers(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 	log_watcher.Delete(mocked_pod)
 	time.Sleep(1 * time.Millisecond)
-	assert.Equal(t, state.FINISHED, st.Get(stateKey))
+	assert.Equal(t, "", st.Get(stateKey))
 
 	mocked_pod.ObjectMeta.Annotations["admiral.io/ignore-containers"] = "hello"
 	log_watcher.Delete(mocked_pod)

@@ -40,3 +40,14 @@ func GetRestConfig() (*rest.Config, error) {
 	}
 	return config, err
 }
+
+// ShrinkStringMap shrinks a map of strings without leaking memory
+func ShrinkStringMap(o map[string]string) map[string]string {
+	n := make(map[string]string, len(o))
+
+	for k, v := range o {
+		n[k] = v
+	}
+
+	return n
+}

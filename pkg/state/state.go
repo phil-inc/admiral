@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 )
@@ -56,6 +57,7 @@ func (s *SharedMutable) deletionHandler() {
 	for key := range s.deleteChannel {
 		s.mutex.Lock()
 		delete(s.objects, key)
+		s.objects = utils.ShrinkStringMap(s.objects)
 		s.mutex.Unlock()
 	}
 }

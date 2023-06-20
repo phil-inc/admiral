@@ -132,8 +132,6 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 func (l *logs) finishContainersInState(pod *v1.Pod) {
 	ignoreList := pod.Annotations[l.ignoreContainerAnnotation]
 
-	fmt.Println("finish")
-
 	for _, container := range pod.Spec.Containers {
 
 		if ignoreContainer(ignoreList, container) {
@@ -141,7 +139,7 @@ func (l *logs) finishContainersInState(pod *v1.Pod) {
 		}
 
 		name := generateUniqueContainerName(pod, container)
-		l.state.Set(name, state.FINISHED)
+		l.state.Delete(name)
 
 		logrus.Println("Finishing state")
 		logrus.Printf("\tPod: %s", pod.Name)
@@ -152,7 +150,6 @@ func (l *logs) finishContainersInState(pod *v1.Pod) {
 func (l *logs) deleteContainersInState(pod *v1.Pod) {
 	ignoreList := pod.Annotations[l.ignoreContainerAnnotation]
 
-	fmt.Println("delete")
 	for _, container := range pod.Spec.Containers {
 
 		if ignoreContainer(ignoreList, container) {
