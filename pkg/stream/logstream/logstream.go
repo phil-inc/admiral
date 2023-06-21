@@ -63,7 +63,23 @@ func (b *builder) Build() *logstream {
 	}
 }
 
-func (l *logstream) Stream(since *metav1.Time) {
+func (l *logstream) Stream() {
+	l.Open(nil)
+
+	err := l.Read()
+
+	for {
+		if err == io.EOF {
+			t := metav1.NewTime(time.Now())
+			l.Open(t.DeepCopy())
+			err = l.Read()
+		} else {
+			break
+		}
+	}
+}
+
+func (l *logstream) Open(since *metav1.Time) {
 	var err error
 	ctx := context.Background()
 
@@ -86,20 +102,15 @@ func (l *logstream) Stream(since *metav1.Time) {
 	}
 
 	l.reader = bufio.NewReader(l.stream)
-	l.Read()
 }
 
-func (l *logstream) Read() {
+func (l *logstream) Read() error {
 	for {
 		line, err := l.reader.ReadString('\n')
 
 		if err != nil {
-			if err == io.EOF {
-				t := metav1.NewTime(time.Now())
-				go l.Stream(t.DeepCopy())
-				return
-			}
 			l.state.Error(err)
+			return err
 		}
 
 		if line == "" {
@@ -126,5 +137,4 @@ func (l *logstream) Read() {
 			l.rawLogChannel <- raw
 		}()
 	}
-	l.stream.Close()
 }

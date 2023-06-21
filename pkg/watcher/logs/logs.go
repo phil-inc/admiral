@@ -124,7 +124,7 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 		l.state.Set(name, state.RUNNING)
 
 		if l.state.GetKubeClient() != nil {
-			go logstream.New().State(l.state).Pod(pod).Container(container).RawLogChannel(l.rawLogChannel).Build().Stream(nil)
+			go logstream.New().State(l.state).Pod(pod).Container(container).RawLogChannel(l.rawLogChannel).Build().Stream()
 		}
 	}
 }
