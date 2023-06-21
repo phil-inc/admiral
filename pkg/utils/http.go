@@ -3,7 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -26,7 +26,7 @@ func Send(data interface{}, method string, url string, client *http.Client) erro
 	}
 
 	if res.StatusCode == 400 {
-		return errors.New(res.Status)
+		return fmt.Errorf("%s - %s", res.Status, res.Body)
 	}
 
 	return nil

@@ -62,7 +62,7 @@ type gchat struct {
 }
 
 type gchatDTO struct {
-	Text string
+	Text string `json:"text"`
 }
 
 // Stream waits to receive something
