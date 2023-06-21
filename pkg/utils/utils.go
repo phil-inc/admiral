@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -50,4 +51,8 @@ func ShrinkStringMap(o map[string]string) map[string]string {
 	}
 
 	return n
+}
+
+func GenerateUniqueContainerName(pod *v1.Pod, container v1.Container) string {
+	return fmt.Sprintf("%s.%s.%s", pod.ObjectMeta.Namespace, pod.Name, container.Name)
 }

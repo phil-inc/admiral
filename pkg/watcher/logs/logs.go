@@ -1,12 +1,12 @@
 package logs
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
 	"github.com/phil-inc/admiral/pkg/stream/logstream"
+	"github.com/phil-inc/admiral/pkg/utils"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 )
@@ -111,7 +111,7 @@ func (l *logs) addContainersToState(pod *v1.Pod) {
 			continue
 		}
 
-		name := generateUniqueContainerName(pod, container)
+		name := utils.GenerateUniqueContainerName(pod, container)
 
 		if v := l.state.Get(name); v != "" {
 			continue
@@ -138,7 +138,7 @@ func (l *logs) finishContainersInState(pod *v1.Pod) {
 			continue
 		}
 
-		name := generateUniqueContainerName(pod, container)
+		name := utils.GenerateUniqueContainerName(pod, container)
 		l.state.Delete(name)
 
 		logrus.Println("Finishing state")
@@ -156,7 +156,7 @@ func (l *logs) deleteContainersInState(pod *v1.Pod) {
 			continue
 		}
 
-		name := generateUniqueContainerName(pod, container)
+		name := utils.GenerateUniqueContainerName(pod, container)
 		l.state.Delete(name)
 
 		logrus.Println("Setting state deleted")
@@ -171,8 +171,4 @@ func ignoreContainer(ignoreList string, container v1.Container) bool {
 	}
 
 	return false
-}
-
-func generateUniqueContainerName(pod *v1.Pod, container v1.Container) string {
-	return fmt.Sprintf("%s.%s.%s", pod.ObjectMeta.Namespace, pod.Name, container.Name)
 }

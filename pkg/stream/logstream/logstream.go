@@ -10,6 +10,7 @@ import (
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/state"
+	"github.com/phil-inc/admiral/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,13 +67,14 @@ func (b *builder) Build() *logstream {
 func (l *logstream) Stream() {
 	l.Open(nil)
 
-	err := l.Read()
+	l.Read()
 
 	for {
-		if err == io.EOF {
+		name := utils.GenerateUniqueContainerName(l.pod, l.container)
+		if l.state.Get(name) == state.RUNNING {
 			t := metav1.NewTime(time.Now())
 			l.Open(t.DeepCopy())
-			err = l.Read()
+			l.Read()
 		} else {
 			break
 		}
@@ -104,13 +106,13 @@ func (l *logstream) Open(since *metav1.Time) {
 	l.reader = bufio.NewReader(l.stream)
 }
 
-func (l *logstream) Read() error {
+func (l *logstream) Read() {
 	for {
 		line, err := l.reader.ReadString('\n')
 
 		if err != nil {
 			l.state.Error(err)
-			return err
+			return
 		}
 
 		if line == "" {
