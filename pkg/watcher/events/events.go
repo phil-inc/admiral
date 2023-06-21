@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/phil-inc/admiral/pkg/state"
-	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -56,11 +55,10 @@ func (b *builder) Build() *events {
 // if they pass the filter, pass them to the backend channel.
 func (e *events) Add(obj interface{}) {
 	event := obj.(*v1.Event)
-	logrus.Println(event)
 
 	// check if the event was created before admiral started.
 	if e.state.InitTimestamp().Before(event.ObjectMeta.CreationTimestamp.Time) {
-		if e.inFilter(event.Message) {
+		if e.inFilter(event.Reason) {
 			e.channel <- e.formatMessage(event)
 		}
 	}
