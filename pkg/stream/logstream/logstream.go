@@ -99,7 +99,9 @@ func (l *logstream) Open(since *metav1.Time) {
 		}).Stream(ctx)
 
 	if err != nil {
-		l.state.Error(err)
+		if err != io.EOF {
+			l.state.Error(err)
+		}
 		return
 	}
 
