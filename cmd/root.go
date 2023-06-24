@@ -65,7 +65,7 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 	logrus.Println("")
 
 	logrus.Println("Initializing shared mutable state...")
-	s := state.New("")
+	s := state.New(cfg.Cluster)
 
 	logrus.Println("\tAdding shared error channel to state...")
 	errCh := make(chan error)
