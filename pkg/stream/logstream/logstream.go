@@ -3,7 +3,9 @@ package logstream
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -132,13 +134,43 @@ func (l *logstream) Read() {
 		metadata["pod"] = l.pod.Name
 		metadata["namespace"] = l.pod.Namespace
 
+		timestamp, err := l.getTimestamp(msg)
+		if err != nil {
+			l.state.Error(err)
+		}
+
 		raw := backend.RawLog{
-			Log:      msg,
-			Metadata: metadata,
+			Log:       msg,
+			Metadata:  metadata,
+			Timestamp: timestamp,
 		}
 
 		go func() {
 			l.rawLogChannel <- raw
 		}()
 	}
+}
+
+func (l *logstream) getTimestamp(msg string) (string, error) {
+	timeKey := l.pod.Annotations["admiral.io/time-key"]
+
+	// try parsing what could be json
+	if len(msg) > 0 && msg[0:1] == "{" {
+		var log map[string]interface{}
+
+		err := json.Unmarshal([]byte(msg), &log)
+		if err != nil {
+			return fmt.Sprintf("%d", time.Now().UnixNano()), err
+		}
+
+		if v, ok := log[timeKey]; ok {
+			t, err := time.Parse(time.RFC3339, fmt.Sprintf("%v", v))
+			if err != nil {
+				return fmt.Sprintf("%d", time.Now().UnixNano()), err
+			}
+			return fmt.Sprintf("%d", t.UnixNano()), nil
+		}
+	}
+
+	return fmt.Sprintf("%d", time.Now().UnixNano()), nil
 }

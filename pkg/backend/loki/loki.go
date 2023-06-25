@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/utils"
@@ -90,13 +89,11 @@ func (l *loki) Stream() {
 }
 
 func rawLogToDTO(r backend.RawLog) *lokiDTO {
-	timeStamp := fmt.Sprintf("%d", time.Now().UnixNano())
-
 	return &lokiDTO{
 		Streams: []streams{
 			{
 				Stream: formatLogMetadata(r.Metadata),
-				Values: [][]string{{timeStamp, r.Log}},
+				Values: [][]string{{r.Timestamp, r.Log}},
 			},
 		},
 	}
