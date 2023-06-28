@@ -75,16 +75,11 @@ func (e *events) inFilter(s string) bool {
 
 func (e *events) formatMessage(event *v1.Event) string {
 	return fmt.Sprintf(`
-cluster: %s
-
+cluster:   %s
 namespace: %s
-
-object: %s
-
-reason: %s
-
-message: %s
-
+object:    %s
+reason:    %s
+message:   %s
 timestamp: %s`,
 		e.state.Cluster(), event.Namespace, event.InvolvedObject.Name, event.Reason, event.Message, event.CreationTimestamp.Time)
 }
