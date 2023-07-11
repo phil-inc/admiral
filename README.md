@@ -16,39 +16,6 @@ routine Kubernetes operations.
 - Send messages to a webhook
 - Stream logs from pods to a logstore (currently supports Grafana Loki)
 
-## Application structure
-
-Presently, the application depends on a single configuration file:
-`${HOME}/.admiral.yaml`, which looks something like this:
-
-```yaml
-cluster: my-cluster
-namespace: "" # Use all namespaces
-events:
-    handler:
-        webhook:
-            url: https://my.webhook.url
-logstream:
-    logstore:
-        loki:
-            url: https://loki.logging.svc.cluster.local:3100 # A svc named loki in the logging namespace
-    apps: # The label "app" on a pod
-        - my-app-deployment
-ignorecontainers: [datadog-agent] # an array of container names to ignore
-metrics:
-  handler:
-    prometheus: true
-    pushgateway: "http://cluster.local:9091"
-  apps:
-    - my-app-name
-```
-
-Based on the config, the application instantiates a handler. For now, the only
-available handler is webhook. It then instantiates a controller watching
-the Kubernetes API server for a variety of defined events. Each controller adds
-their events to a queue, which is then popped by the handler and POSTed to the
-webhook.
-
 ## Building
 
 Admiral is a statically compiled `golang` application and building is as simple
