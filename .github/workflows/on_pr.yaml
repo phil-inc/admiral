@@ -28,7 +28,8 @@ jobs:
 
   gitops_tagger:
     runs-on: ubuntu-22.04
-    needs: generate_tag
+    needs: [generate_tag, build_push]
+    if: ${{ github.event_name != 'pull_request' }}
     steps:
       - name: Sign payload
         env:
@@ -39,5 +40,5 @@ jobs:
           curl -v https://gitops-tagger.dev.phil.us/webhook \
             -H 'Content-Type: application/json' \
             -H 'x-phil-signature: sha256=${SIGNED_PAYLOAD}' \
-            -X POST --data ${PAYLOAD}
+            --data ${PAYLOAD}
     
