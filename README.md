@@ -18,17 +18,15 @@ routine Kubernetes operations.
 
 ## Building
 
-Admiral is a statically compiled `golang` application and building is as simple
-as:
+`make` does the following:
 
 ```bash
-CGO_ENABLED=0 GOOS=linux go build -o out/admiral ./cmd
-```
+make tidy  # go mod tidy
+make fmt   # go fmt
+make test  # go test
+make build # go build
 
-You can also execute the above command with CMake:
-
-```bash
-make build
+make       # all of the above
 ```
 
 ## Running
