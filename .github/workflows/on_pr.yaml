@@ -35,8 +35,8 @@ jobs:
         env:
           GITOPS_TAGGER_SECRET_KEY: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
         run: | 
-          PAYLOAD=$(echo '{"repository":"git@github.com:phil-inc/phil-cicd.git","tag":"${{ needs.generate_tag.outputs.tag }}","application":"admiral"}')
-          SIGNED_PAYLOAD=$(echo ${PAYLOAD} | openssl sha256 -hmac "${GITOPS_TAGGER_SECRET_KEY}")
+          PAYLOAD=$(echo -n '{"repository":"git@github.com:phil-inc/phil-cicd.git","tag":"${{ needs.generate_tag.outputs.tag }}","application":"admiral"}')
+          SIGNED_PAYLOAD=$(echo -n ${PAYLOAD} | openssl sha256 -hmac "${GITOPS_TAGGER_SECRET_KEY}")
           curl https://gitops-tagger.dev.phil.us/webhook \
             -H "Content-Type: application/json" \
             -H "x-phil-signature: sha256=${SIGNED_PAYLOAD}" \
