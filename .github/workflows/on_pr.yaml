@@ -37,7 +37,7 @@ jobs:
         run: | 
           PAYLOAD=$(echo -n '{"repository":"git@github.com:phil-inc/phil-cicd.git","tag":"${{ needs.generate_tag.outputs.tag }}","application":"admiral"}')
           SIGNED_PAYLOAD=$(echo -n ${PAYLOAD} | openssl sha256 -hmac "${GITOPS_TAGGER_SECRET_KEY}")
-          curl https://gitops-tagger.dev.phil.us/webhook \
+          curl -v https://gitops-tagger.dev.phil.us/webhook \
             -H "Content-Type: application/json" \
             -H "x-phil-signature: sha256=${SIGNED_PAYLOAD}" \
             --data ${PAYLOAD}
