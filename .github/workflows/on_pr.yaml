@@ -31,14 +31,8 @@ jobs:
     needs: [generate_tag, build_push]
     if: ${{ github.event_name != 'pull_request' }}
     steps:
-      - name: Sign payload
-        env:
-          GITOPS_TAGGER_SECRET_KEY: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
-        run: | 
-          PAYLOAD=$(echo -n '{"repository":"git@github.com:phil-inc/phil-cicd.git","tag":"${{ needs.generate_tag.outputs.tag }}","application":"admiral"}')
-          SIGNED_PAYLOAD=$(echo -n ${PAYLOAD} | openssl sha256 -hmac "${GITOPS_TAGGER_SECRET_KEY}" -binary | xxd -p -c 256)
-          curl https://gitops-tagger.dev.phil.us/webhook \
-            -H "Content-Type: application/json" \
-            -H "x-phil-signature: sha256=${SIGNED_PAYLOAD}" \
-            --data ${PAYLOAD}
-    
+      - uses: phil-inc/public-actions/.github/actions/gitops-tagger@master
+        with:
+          application: admiral
+          gitops_tagger_secret_key: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
+          tag: ${{ needs.generate_tag.outputs.tag }}
