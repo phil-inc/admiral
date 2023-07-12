@@ -24,6 +24,7 @@ func Test_Build(t *testing.T) {
 }
 
 func Test_rawLogToDTO(t *testing.T) {
+	l := New().Build()
 	expected := &lokiDTO{
 		Streams: []streams{
 			{
@@ -40,7 +41,7 @@ func Test_rawLogToDTO(t *testing.T) {
 		},
 	}
 
-	actual := rawLogToDTO(r)
+	actual := l.rawLogToDTO(r)
 
 	assert.Equal(t, expected.Streams[0].Stream, actual.Streams[0].Stream)
 	assert.Equal(t, expected.Streams[0].Values[0][0], actual.Streams[0].Values[0][1])

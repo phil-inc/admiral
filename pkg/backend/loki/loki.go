@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/phil-inc/admiral/pkg/backend"
 	"github.com/phil-inc/admiral/pkg/utils"
@@ -64,6 +65,7 @@ type loki struct {
 	logChannel chan backend.RawLog
 	errChannel chan error
 	open       chan bool
+	mutex      sync.RWMutex
 }
 
 type lokiDTO struct {
@@ -79,7 +81,7 @@ type streams struct {
 // into the Loki API.
 func (l *loki) Stream() {
 	for raw := range l.logChannel {
-		dto := rawLogToDTO(raw)
+		dto := l.rawLogToDTO(raw)
 
 		err := utils.Send(dto, "POST", l.url, l.client)
 		if err != nil {
@@ -88,19 +90,20 @@ func (l *loki) Stream() {
 	}
 }
 
-func rawLogToDTO(r backend.RawLog) *lokiDTO {
+func (l *loki) rawLogToDTO(r backend.RawLog) *lokiDTO {
 	return &lokiDTO{
 		Streams: []streams{
 			{
-				Stream: formatLogMetadata(r.Metadata),
+				Stream: l.formatLogMetadata(r.Metadata),
 				Values: [][]string{{r.Timestamp, r.Log}},
 			},
 		},
 	}
 }
 
-func formatLogMetadata(m map[string]string) map[string]string {
-	l := make(map[string]string)
+func (l *loki) formatLogMetadata(m map[string]string) map[string]string {
+	lm := make(map[string]string)
+	l.mutex.Lock()
 	for k, v := range m {
 		parsedK := strings.ReplaceAll(k, ".", "_")
 		parsedK = strings.ReplaceAll(parsedK, "\\", "_")
@@ -110,9 +113,10 @@ func formatLogMetadata(m map[string]string) map[string]string {
 		parsedV = strings.ReplaceAll(parsedV, "-", "_")
 		parsedV = strings.ReplaceAll(parsedV, ".", "_")
 		parsedV = strings.ReplaceAll(parsedV, "/", "_")
-		l[parsedK] = parsedV
+		lm[parsedK] = parsedV
 	}
-	return l
+	l.mutex.Unlock()
+	return lm
 }
 
 // Close will close the injected logChannel.
