@@ -81,7 +81,9 @@ type streams struct {
 // into the Loki API.
 func (l *loki) Stream() {
 	for raw := range l.logChannel {
+		l.mutex.Lock()
 		dto := l.rawLogToDTO(raw)
+		l.mutex.Unlock()
 
 		err := utils.Send(dto, "POST", l.url, l.client)
 		if err != nil {
@@ -103,7 +105,6 @@ func (l *loki) rawLogToDTO(r backend.RawLog) *lokiDTO {
 
 func (l *loki) formatLogMetadata(m map[string]string) map[string]string {
 	lm := make(map[string]string)
-	l.mutex.Lock()
 	for k, v := range m {
 		parsedK := strings.ReplaceAll(k, ".", "_")
 		parsedK = strings.ReplaceAll(parsedK, "\\", "_")
@@ -115,7 +116,6 @@ func (l *loki) formatLogMetadata(m map[string]string) map[string]string {
 		parsedV = strings.ReplaceAll(parsedV, "/", "_")
 		lm[parsedK] = parsedV
 	}
-	l.mutex.Unlock()
 	return lm
 }
 
