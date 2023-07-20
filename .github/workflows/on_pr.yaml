@@ -13,7 +13,6 @@ jobs:
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
     - name: build-push
-      needs: generate-tag
       if: needs.generate_tag.outputs.tag != ''
       uses: phil-inc/public-actions/.github/actions/build-push@master
       with:
