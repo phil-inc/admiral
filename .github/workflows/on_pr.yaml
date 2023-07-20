@@ -13,11 +13,11 @@ jobs:
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
     - name: build-push
-      if: needs.generate_tag.outputs.tag != ''
+      if: "${{ steps.generate-tag.outputs.tag }}" != ""
       uses: phil-inc/public-actions/.github/actions/build-push@master
       with:
         name: admiral
-        tag: ${{ needs.generate_tag.outputs.tag }}
+        tag: ${{ steps.generate-tag.outputs.tag }}
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         region: "us-east-1"
