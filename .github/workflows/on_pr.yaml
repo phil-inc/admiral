@@ -9,6 +9,9 @@ jobs:
   build_push:
     name: Build and Push
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
