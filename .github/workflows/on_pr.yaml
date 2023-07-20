@@ -10,19 +10,19 @@ jobs:
     name: Build and Push
     runs-on: ubuntu-latest
     steps:
-    - name: generate-tag
-      uses: phil-inc/public-actions/.github/actions/generate-tag@master
-    - name: build-push
-      if: "${{ steps.generate-tag.outputs.tag }}" != ""
-      uses: phil-inc/public-actions/.github/actions/build-push@master
-      with:
-        name: admiral
-        tag: ${{ steps.generate-tag.outputs.tag }}
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        region: "us-east-1"
-        push: true
-        notify: true
-        google-chat-webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
-        docker-username: ${{ secrets.docker_username }}
-        docker-password: ${{ secrets.docker_password }}
+      - name: generate-tag
+        uses: phil-inc/public-actions/.github/actions/generate-tag@master
+      - name: build-push
+        if: "${{ steps.generate-tag.outputs.tag }}" != ""
+        uses: phil-inc/public-actions/.github/actions/build-push@master
+        with:
+          name: admiral
+          tag: ${{ steps.generate-tag.outputs.tag }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: "us-east-1"
+          push: true
+          notify: true
+          google-chat-webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          docker-username: ${{ secrets.docker_username }}
+          docker-password: ${{ secrets.docker_password }}
