@@ -6,15 +6,24 @@ on:
     tags:
       - 'v*'
 jobs:
-  generate_tag:
-    uses: phil-inc/public-actions/.github/workflows/generate_tag.yaml@master
   build_push:
-    uses: phil-inc/public-actions/.github/workflows/build_push.yaml@master
-    needs: generate_tag
-    if: needs.generate_tag.outputs.tag != ''
-    secrets: inherit
-    with:
-      name: admiral
-      tag: ${{ needs.generate_tag.outputs.tag }}
-      push: true
-      notify: true
+    name: Build and Push
+    runs-on: ubuntu-latest
+    steps:
+    - name: generate-tag
+      uses: phil-inc/public-actions/.github/actions/generate-tag@master
+    - name: build-push
+      needs: generate-tag
+      if: needs.generate_tag.outputs.tag != ''
+      uses: phil-inc/public-actions/.github/actions/build-push@master
+      with:
+        name: admiral
+        tag: ${{ needs.generate_tag.outputs.tag }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        region: "us-east-1"
+        push: true
+        notify: true
+        google-chat-webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+        docker-username: ${{ secrets.docker_username }}
+        docker-password: ${{ secrets.docker_password }}
