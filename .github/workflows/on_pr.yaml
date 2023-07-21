@@ -9,18 +9,15 @@ jobs:
   build_push:
     name: Build and Push
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
     steps:
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
     - name: build-push
-      if: ${{ steps.generate-tag.outputs.tag }} != ''
+      if: ${{ env.tag }} != ''
       uses: phil-inc/public-actions/.github/actions/build-push@master
       with:
         name: admiral
-        tag: ${{ steps.generate-tag.outputs.tag }}
+        tag: ${{ env.tag }}
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         region: "us-east-1"
