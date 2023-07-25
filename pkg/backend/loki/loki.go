@@ -3,7 +3,6 @@ package loki
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/phil-inc/admiral/pkg/backend"
@@ -96,27 +95,11 @@ func (l *loki) rawLogToDTO(r backend.RawLog) *lokiDTO {
 	return &lokiDTO{
 		Streams: []streams{
 			{
-				Stream: l.formatLogMetadata(r.Metadata),
+				Stream: r.Metadata,
 				Values: [][]string{{r.Timestamp, r.Log}},
 			},
 		},
 	}
-}
-
-func (l *loki) formatLogMetadata(m map[string]string) map[string]string {
-	lm := make(map[string]string)
-	for k, v := range m {
-		parsedK := strings.ReplaceAll(k, ".", "_")
-		parsedK = strings.ReplaceAll(parsedK, "\\", "_")
-		parsedK = strings.ReplaceAll(parsedK, "-", "_")
-		parsedK = strings.ReplaceAll(parsedK, "/", "_")
-		parsedV := strings.ReplaceAll(v, "\\", "_")
-		parsedV = strings.ReplaceAll(parsedV, "-", "_")
-		parsedV = strings.ReplaceAll(parsedV, ".", "_")
-		parsedV = strings.ReplaceAll(parsedV, "/", "_")
-		lm[parsedK] = parsedV
-	}
-	return lm
 }
 
 // Close will close the injected logChannel.

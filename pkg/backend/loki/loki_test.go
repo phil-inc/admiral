@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/phil-inc/admiral/pkg/backend"
@@ -46,6 +47,60 @@ func Test_rawLogToDTO(t *testing.T) {
 	assert.Equal(t, expected.Streams[0].Stream, actual.Streams[0].Stream)
 	assert.Equal(t, expected.Streams[0].Values[0][0], actual.Streams[0].Values[0][1])
 
+}
+
+func Test_Concurrency(t *testing.T) {
+	received := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received++
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		b, err := ioutil.ReadAll(r.Body)
+
+		assert.Nil(t, err)
+		assert.Contains(t, string(b), "some log")
+		assert.Contains(t, string(b), "some metadata")
+		assert.Contains(t, string(b), "other metadata")
+	}))
+
+	ch := make(chan backend.RawLog)
+	cli := &http.Client{}
+	errCh := make(chan error)
+	l := New().ErrChannel(errCh).LogChannel(ch).Url(server.URL).Client(cli).Build()
+
+	go utils.HandleErrorStream(errCh)
+	defer close(errCh)
+	go l.Stream()
+
+	count := 50000
+	var wg sync.WaitGroup
+	wg.Add(count)
+
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wg.Done()
+
+			r := backend.RawLog{
+				Log: "some log",
+				Metadata: map[string]string{
+					"hello": "some metadata",
+					"world": "other metadata",
+				},
+			}
+			l.logChannel <- r
+		}()
+	}
+
+	wg.Wait()
+
+	for {
+		if received == count {
+			break
+		}
+	}
+
+	l.Close()
 }
 
 func Test_Stream(t *testing.T) {

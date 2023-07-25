@@ -141,7 +141,7 @@ func (l *logstream) Read() {
 
 		raw := backend.RawLog{
 			Log:       msg,
-			Metadata:  metadata,
+			Metadata:  formatLogMetadata(metadata),
 			Timestamp: timestamp,
 		}
 
@@ -173,4 +173,20 @@ func (l *logstream) getTimestamp(msg string) (string, error) {
 	}
 
 	return fmt.Sprintf("%d", time.Now().UnixNano()), nil
+}
+
+func formatLogMetadata(m map[string]string) map[string]string {
+	lm := make(map[string]string)
+	for k, v := range m {
+		parsedK := strings.ReplaceAll(k, ".", "_")
+		parsedK = strings.ReplaceAll(parsedK, "\\", "_")
+		parsedK = strings.ReplaceAll(parsedK, "-", "_")
+		parsedK = strings.ReplaceAll(parsedK, "/", "_")
+		parsedV := strings.ReplaceAll(v, "\\", "_")
+		parsedV = strings.ReplaceAll(parsedV, "-", "_")
+		parsedV = strings.ReplaceAll(parsedV, ".", "_")
+		parsedV = strings.ReplaceAll(parsedV, "/", "_")
+		lm[parsedK] = parsedV
+	}
+	return lm
 }
