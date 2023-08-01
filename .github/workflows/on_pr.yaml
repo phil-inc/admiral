@@ -10,6 +10,11 @@ jobs:
     name: Build and Push
     runs-on: ubuntu-latest
     steps:
+    - name: archive-repo
+      uses: phil-inc/public-actions/.github/actions/archive-repo@master
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
     - name: build-push
