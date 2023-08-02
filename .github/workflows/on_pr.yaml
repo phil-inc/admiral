@@ -15,6 +15,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        assume-role: ${{ secrets.assume_role }}
     - name: generate-tag
       uses: phil-inc/public-actions/.github/actions/generate-tag@master
     - name: build-push
