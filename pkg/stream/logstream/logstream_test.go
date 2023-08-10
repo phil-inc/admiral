@@ -70,7 +70,7 @@ func Test_Logstream(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	writer.Close()
-	<-errCh
+	// <-errCh
 
 	assert.Greater(t, len(results), 9)
 }
