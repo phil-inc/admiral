@@ -115,7 +115,6 @@ func (l *logstream) Read() {
 		line, err := l.reader.ReadString('\n')
 
 		if err != nil {
-			l.state.Error(err)
 			return
 		}
 
