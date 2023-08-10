@@ -13,26 +13,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  generate_tag:
-    uses: phil-inc/public-actions/.github/workflows/generate_tag.yaml@master
   build_push:
-    uses: phil-inc/public-actions/.github/workflows/build_push.yaml@master
-    needs: generate_tag
-    if: needs.generate_tag.outputs.tag != ''
-    secrets: inherit
-    with:
-      name: admiral
-      tag: ${{ needs.generate_tag.outputs.tag }}
-      push: ${{ github.event_name != 'pull_request' }}
-      notify: true
-
-  gitops_tagger:
-    runs-on: ubuntu-22.04
-    needs: [generate_tag, build_push]
-    if: ${{ github.event_name != 'pull_request' }}
+    name: Build and Push
+    runs-on: ubuntu-latest
     steps:
-      - uses: phil-inc/public-actions/.github/actions/gitops-tagger@master
-        with:
-          application: admiral
-          gitops_tagger_secret_key: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
-          tag: ${{ needs.generate_tag.outputs.tag }}
+    - name: generate-tag
+      uses: phil-inc/public-actions/.github/actions/generate-tag@master
+
+    - name: build-push
+      if: ${{ env.tag }} != ''
+      uses: phil-inc/public-actions/.github/actions/build-push@master
+      with:
+        name: admiral
+        tag: ${{ env.tag }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        region: "us-east-1"
+        push: ${{ github.event_name != 'pull_request' }}
+        notify: ${{ github.event_name != 'pull_request' }}
+        google-chat-webhook: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+        docker-username: ${{ secrets.docker_username }}
+        docker-password: ${{ secrets.docker_password }}
+
+    - name: gitops-tagger
+      uses: phil-inc/public-actions/.github/actions/gitops-tagger@master
+      if: ${{ github.event_name != 'pull_request' }}
+      with:
+        application: admiral
+        gitops_tagger_secret_key: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
+        tag: ${{ needs.generate_tag.outputs.tag }}
+
+    - name: archive-repo
+      uses: phil-inc/public-actions/.github/actions/archive-repo@master
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        assume-role: ${{ secrets.ARCHIVE_CODE_REPOSITORIES_ROLE }}
