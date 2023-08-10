@@ -1,0 +1,15 @@
+---
+cluster: phil-dev-east
+
+watchers:
+- type: logs
+  podFilterAnnotation: "admiral.io/logs"
+  ignoreContainerAnnotation: "admiral.io/ignore-containers"
+  backend:
+    type: local
+
+- type: events
+  filter:
+  - NodeNotReady
+  backend:
+    type: local

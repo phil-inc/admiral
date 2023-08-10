@@ -1,17 +1,11 @@
-tidy:
-	go mod tidy -v
+build: tidy fmt test
+	CGO_ENABLED=0 go build -o out/admiral ./cmd && chmod +x out/admiral
 
-# go fmt
+test:
+	go test ./... -cover -v
+
 fmt:
 	gofmt -s -w .
 
-# go fmt list files affected
-fmt_list:
-	gofmt -s -l .
-
-
-test:
-	go test ./... -covermode=atomic -coverprofile=coverage.out
-
-build:
-	CGO_ENABLED=0 GOOS=linux go build -o out/admiral ./cmd && chmod +x out/admiral
+tidy:
+	go mod tidy -v
