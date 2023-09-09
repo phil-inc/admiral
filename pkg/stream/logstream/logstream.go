@@ -111,7 +111,7 @@ func (l *logstream) Open(since *metav1.Time) {
 }
 
 func (l *logstream) Read() {
-	logOutput := make(chan backend.RawLog, 100)
+	logOutput := make(chan backend.RawLog, 10)
 
 	go func() {
 		for log := range logOutput {
