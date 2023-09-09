@@ -153,6 +153,10 @@ func RootCmd(cmd *cobra.Command, args []string) error {
 	stop := make(chan struct{})
 	defer close(stop)
 
+	// ballast marks 1mib on heap, so if we ever cross 2mib, the GC sweeps
+	ballast := make([]byte, 1024*1024)
+	logrus.Printf("ballast size: %d", len(ballast))
+
 	informerFactory.Start(stop)
 	logrus.Println("Admiral: Ready")
 	logrus.Println("")
