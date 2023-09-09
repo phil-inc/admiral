@@ -11,13 +11,8 @@ var philLogo = figure.NewColorFigure("phil, inc.", "", "cyan", true)
 var admiralLogo = figure.NewColorFigure("Admiral", "", "green", true)
 
 func main() {
-	// ballast marks 10mib on heap, so if we ever cross 20mib, the GC sweeps
-	ballast := make([]byte, 10*1024*1024)
-
 	admiralLogo.Print()
 	philLogo.Print()
-
-	logrus.Printf("ballast size: %s", ballast)
 
 	rootCmd := NewRootCmd()
 	rootCmd.SetHelpCommand(NewHelpCmd())
