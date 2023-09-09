@@ -41,7 +41,7 @@ jobs:
       with:
         application: admiral
         gitops_tagger_secret_key: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
-        tag: ${{ needs.generate_tag.outputs.tag }}
+        tag: ${{ env.tag }}
 
     - name: archive-repo
       uses: phil-inc/public-actions/.github/actions/archive-repo@master
