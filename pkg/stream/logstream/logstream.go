@@ -144,11 +144,7 @@ func (l *logstream) Read() {
 			Timestamp: timestamp,
 		}
 
-		go func() {
-			l.rawLogChannel <- raw
-		}()
-
-		time.Sleep(time.Millisecond * 100)
+		l.rawLogChannel <- raw
 	}
 }
 
