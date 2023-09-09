@@ -107,14 +107,23 @@ func (l *logstream) Open(since *metav1.Time) {
 		return
 	}
 
-	l.reader = bufio.NewReader(l.stream)
+	l.reader = bufio.NewReaderSize(l.stream, 2048)
 }
 
 func (l *logstream) Read() {
+	logOutput := make(chan backend.RawLog, 100)
+
+	go func() {
+		for log := range logOutput {
+			l.rawLogChannel <- log
+		}
+	}()
+
 	for {
 		line, err := l.reader.ReadString('\n')
 
 		if err != nil {
+			close(logOutput)
 			return
 		}
 
@@ -144,7 +153,7 @@ func (l *logstream) Read() {
 			Timestamp: timestamp,
 		}
 
-		l.rawLogChannel <- raw
+		logOutput <- raw
 	}
 }
 
