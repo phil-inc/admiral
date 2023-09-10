@@ -141,15 +141,15 @@ func (l *logstream) Read() {
 
 		msg := strings.TrimSpace(line)
 
-		timestamp, err := l.getTimestamp(msg)
-		if err != nil {
-			l.state.Error(err)
-		}
+		//timestamp, err := l.getTimestamp(msg)
+		//if err != nil {
+			//l.state.Error(err)
+		//}
 
 		raw := backend.RawLog{
 			Log:       msg,
 			Metadata:  l.metadata,
-			Timestamp: timestamp,
+			Timestamp: fmt.Sprintf("%d", time.Now().UnixNano()),
 		}
 
 		logOutput <- raw
