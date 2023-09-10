@@ -24,6 +24,7 @@ type logstream struct {
 	container     v1.Container
 	reader        *bufio.Reader
 	stream        io.ReadCloser
+	metadata      map[string]string
 }
 
 type builder struct {
@@ -31,6 +32,7 @@ type builder struct {
 	state         *state.SharedMutable
 	pod           *v1.Pod
 	container     v1.Container
+	metadata      map[string]string
 }
 
 func New() *builder {
@@ -57,12 +59,18 @@ func (b *builder) Pod(pod *v1.Pod) *builder {
 	return b
 }
 
+func (b *builder) Metadata(m map[string]string) *builder {
+	b.metadata = formatLogMetadata(m)
+	return b
+}
+
 func (b *builder) Build() *logstream {
 	return &logstream{
 		rawLogChannel: b.rawLogChannel,
 		state:         b.state,
 		pod:           b.pod,
 		container:     b.container,
+		metadata:      b.metadata,
 	}
 }
 
@@ -107,7 +115,7 @@ func (l *logstream) Open(since *metav1.Time) {
 		return
 	}
 
-	l.reader = bufio.NewReaderSize(l.stream, 2048)
+	l.reader = bufio.NewReaderSize(l.stream, 4096)
 }
 
 func (l *logstream) Read() {
@@ -133,15 +141,6 @@ func (l *logstream) Read() {
 
 		msg := strings.TrimSpace(line)
 
-		metadata := make(map[string]string)
-
-		if l.pod.Labels != nil {
-			metadata = l.pod.Labels
-		}
-
-		metadata["pod"] = l.pod.Name
-		metadata["namespace"] = l.pod.Namespace
-
 		timestamp, err := l.getTimestamp(msg)
 		if err != nil {
 			l.state.Error(err)
@@ -149,7 +148,7 @@ func (l *logstream) Read() {
 
 		raw := backend.RawLog{
 			Log:       msg,
-			Metadata:  formatLogMetadata(metadata),
+			Metadata:  l.metadata,
 			Timestamp: timestamp,
 		}
 
