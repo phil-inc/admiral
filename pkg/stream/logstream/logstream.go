@@ -143,7 +143,7 @@ func (l *logstream) Read() {
 
 		//timestamp, err := l.getTimestamp(msg)
 		//if err != nil {
-			//l.state.Error(err)
+		//l.state.Error(err)
 		//}
 
 		raw := backend.RawLog{

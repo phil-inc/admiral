@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"golang.org/x/exp/slices"
 )
+
+var SUCCESSFUL_STATUS_CODES = []int{200, 201, 202, 203, 204, 205, 206, 207, 208, 226}
 
 func Send(data interface{}, method string, url string, client *http.Client) error {
 	body, err := json.Marshal(data)
@@ -25,7 +29,7 @@ func Send(data interface{}, method string, url string, client *http.Client) erro
 		return err
 	}
 
-	if res.StatusCode == 400 {
+	if !slices.Contains(SUCCESSFUL_STATUS_CODES, res.StatusCode) {
 		return fmt.Errorf("%s - %s", res.Status, res.Body)
 	}
 
