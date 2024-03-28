@@ -42,10 +42,3 @@ jobs:
         application: admiral
         gitops_tagger_secret_key: ${{ secrets.GITOPS_TAGGER_SECRET_KEY }}
         tag: ${{ env.tag }}
-
-    - name: archive-repo
-      uses: phil-inc/public-actions/.github/actions/archive-repo@master
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        assume-role: ${{ secrets.ARCHIVE_CODE_REPOSITORIES_ROLE }}
