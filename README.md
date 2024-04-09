@@ -4,9 +4,6 @@ Admiral is an in-memory service evolved out of a need
 for extra observability of AWS EKS Fargate. Lack of control & vision of the
 `kubelet` necessitates more consistent testing and reporting. 
 
-Our ultimate goal is providing a simple interface and pattern for automating
-routine Kubernetes operations.
-
 ## Available features
 
 - Observe all kinds of Kubernetes Events
