@@ -17,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 // minimum patched version of golang.org/x/oauth2 for GHSA-6v2p-p543-phr9
@@ -61,35 +62,66 @@ func moduleVersionInGoMod(t *testing.T, gomod, module string) string {
 	return m[1]
 }
 
-// Test_Oauth2IsPatched checks that go.mod pins a patched golang.org/x/oauth2.
-// This is the primary acceptance criterion of SEC-31.
-func Test_Oauth2IsPatched(t *testing.T) {
-	version := moduleVersionInGoMod(t, readFile(t, "go.mod"), "golang.org/x/oauth2")
+// requireNoReplaceDirective fails when go.mod redirects a module. A replace
+// directive overrides the require line, so a guard that reads only the require
+// line passes while the build links the replacement version.
+func requireNoReplaceDirective(t *testing.T, gomod, module string) {
+	t.Helper()
+	re := regexp.MustCompile(`(?m)^\s*(?:replace\s+)?` + regexp.QuoteMeta(module) + `\s+(?:v\S+\s+)?=>.*$`)
+	line := re.FindString(gomod)
+	require.Emptyf(t, line,
+		"go.mod holds a replace directive for %s, so the require line does not give the version that the build links: %s",
+		module, strings.TrimSpace(line))
+}
 
+// effectiveModuleVersion returns the version of a module that the build links.
+// A replace directive overrides the require line, so the helper reads the
+// replacement version when go.mod holds one. 'go list -m -f {{.Version}}'
+// reports the require version even under a replace directive, so a guard that
+// uses that template alone cannot see a downgrade.
+func effectiveModuleVersion(t *testing.T, module string) string {
+	t.Helper()
+	const tmpl = "{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}"
+	out, err := exec.Command("go", "list", "-m", "-f", tmpl, module).CombinedOutput()
+	require.NoErrorf(t, err, "go list -m failed: %s", out)
+	version := strings.TrimSpace(string(out))
+	require.NotEmptyf(t, version,
+		"go list -m reports no version for %s, so a local directory replaces it", module)
+	return version
+}
+
+// requireModuleIsPatched checks a version tuple against the patched oauth2
+// version of GHSA-6v2p-p543-phr9.
+func requireModuleIsPatched(t *testing.T, source, version string) {
+	t.Helper()
 	major, minor, patch := parseSemver(t, version)
 	assert.Truef(t,
 		atLeast(major, minor, patch, oauth2MinMajor, oauth2MinMinor, oauth2MinPatch),
-		"golang.org/x/oauth2 %s is lower than the patched v%d.%d.%d for GHSA-6v2p-p543-phr9",
-		version, oauth2MinMajor, oauth2MinMinor, oauth2MinPatch,
+		"%s gives golang.org/x/oauth2 %s, which is lower than the patched v%d.%d.%d for GHSA-6v2p-p543-phr9",
+		source, version, oauth2MinMajor, oauth2MinMinor, oauth2MinPatch,
 	)
 }
 
-// Test_Oauth2ResolvedVersionIsPatched checks the version that the build
-// actually selects. go.mod can list one version while minimal version
-// selection picks another, so this asserts on the resolved module.
-func Test_Oauth2ResolvedVersionIsPatched(t *testing.T) {
+// Test_Oauth2IsPatched checks that go.mod pins a patched golang.org/x/oauth2.
+// This is the primary acceptance criterion of SEC-31. The test also rejects a
+// replace directive, because a replace directive hides the linked version.
+func Test_Oauth2IsPatched(t *testing.T) {
+	gomod := readFile(t, "go.mod")
+
+	requireNoReplaceDirective(t, gomod, "golang.org/x/oauth2")
+	requireModuleIsPatched(t, "go.mod", moduleVersionInGoMod(t, gomod, "golang.org/x/oauth2"))
+}
+
+// Test_Oauth2EffectiveVersionIsPatched checks the version that the build links.
+// go.mod can list one version while minimal version selection picks another,
+// and a replace directive can point at a third one. This test reads the
+// replacement version when one exists, so a downgrade cannot pass it.
+func Test_Oauth2EffectiveVersionIsPatched(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping go list in short mode")
 	}
-	out, err := exec.Command("go", "list", "-m", "-f", "{{.Version}}", "golang.org/x/oauth2").CombinedOutput()
-	require.NoErrorf(t, err, "go list -m failed: %s", out)
-
-	major, minor, patch := parseSemver(t, string(out))
-	assert.Truef(t,
-		atLeast(major, minor, patch, oauth2MinMajor, oauth2MinMinor, oauth2MinPatch),
-		"the build selects golang.org/x/oauth2 %s, which is lower than the patched v%d.%d.%d",
-		strings.TrimSpace(string(out)), oauth2MinMajor, oauth2MinMinor, oauth2MinPatch,
-	)
+	requireNoReplaceDirective(t, readFile(t, "go.mod"), "golang.org/x/oauth2")
+	requireModuleIsPatched(t, "go list -m", effectiveModuleVersion(t, "golang.org/x/oauth2"))
 }
 
 // Test_Oauth2IsStillLinked confirms that oauth2 remains in the build graph.
@@ -201,41 +233,101 @@ func Test_ToolchainDirectiveIsConsistent(t *testing.T) {
 		tcMajor, tcMinor, goMajor, goMinor)
 }
 
-// Test_DockerfileGoVersionSatisfiesGoMod checks that the Dockerfile build stage
-// uses a Go image new enough for the go directive in go.mod. The change raised
-// both together. A mismatch breaks 'docker build' but no unit test would show it.
+// goImageStages returns the major and minor Go version of every golang base
+// image in a Dockerfile, keyed by the stage name. An unnamed stage gets a
+// positional key.
+func goImageStages(t *testing.T, dockerfile string) map[string][2]int {
+	t.Helper()
+	re := regexp.MustCompile(`(?mi)^FROM\s+golang:(\d+)\.(\d+)\S*(?:\s+as\s+(\S+))?`)
+	stages := map[string][2]int{}
+	for _, m := range re.FindAllStringSubmatch(dockerfile, -1) {
+		major, _ := strconv.Atoi(m[1])
+		minor, _ := strconv.Atoi(m[2])
+		name := strings.ToLower(m[3])
+		if name == "" {
+			name = "unnamed-" + strconv.Itoa(len(stages))
+		}
+		stages[name] = [2]int{major, minor}
+	}
+	return stages
+}
+
+// Test_DockerfileGoVersionSatisfiesGoMod checks that every golang stage of the
+// Dockerfile uses a Go image new enough for the go directive in go.mod. The
+// test names the build stage, because the first FROM line in the file is not
+// always the stage that compiles the binary. A mismatch breaks 'docker build'
+// but no other unit test would show it.
 func Test_DockerfileGoVersionSatisfiesGoMod(t *testing.T) {
 	dockerfile := readFile(t, "Dockerfile")
 	goMajor, goMinor := goDirective(t, readFile(t, "go.mod"))
 
-	m := regexp.MustCompile(`(?mi)^FROM\s+golang:(\d+)\.(\d+)`).FindStringSubmatch(dockerfile)
-	require.NotNil(t, m, "the Dockerfile has no golang base image with a pinned minor version")
-	imgMajor, _ := strconv.Atoi(m[1])
-	imgMinor, _ := strconv.Atoi(m[2])
+	stages := goImageStages(t, dockerfile)
+	require.NotEmpty(t, stages,
+		"the Dockerfile has no golang base image with a pinned minor version")
 
-	assert.Truef(t, atLeast(imgMajor, imgMinor, 0, goMajor, goMinor, 0),
-		"the Dockerfile image golang:%d.%d is older than the go directive %d.%d in go.mod",
-		imgMajor, imgMinor, goMajor, goMinor)
+	build, ok := stages["build"]
+	require.Truef(t, ok,
+		"the Dockerfile has no golang stage named build, found %v", stages)
+	assert.Truef(t, atLeast(build[0], build[1], 0, goMajor, goMinor, 0),
+		"the build stage image golang:%d.%d is older than the go directive %d.%d in go.mod",
+		build[0], build[1], goMajor, goMinor)
+
+	// Every other golang stage also runs the compiler, so each one must satisfy
+	// the go directive too.
+	for name, version := range stages {
+		assert.Truef(t, atLeast(version[0], version[1], 0, goMajor, goMinor, 0),
+			"the %s stage image golang:%d.%d is older than the go directive %d.%d in go.mod",
+			name, version[0], version[1], goMajor, goMinor)
+	}
 }
 
-// Test_LocalToolchainSatisfiesGoMod checks that the toolchain which runs the
-// tests satisfies the raised go directive.
-func Test_LocalToolchainSatisfiesGoMod(t *testing.T) {
+// Test_OnPrWorkflowBuildsThePatchedModule traces the acceptance criteria of
+// SEC-31 to the only check that runs on a pull request. The build_push job of
+// .github/workflows/on_pr.yaml builds the image, the image build runs make, and
+// make compiles the module that go.mod describes.
+func Test_OnPrWorkflowBuildsThePatchedModule(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping go version in short mode")
+		t.Skip("skipping go list in short mode")
 	}
-	out, err := exec.Command("go", "version").CombinedOutput()
-	require.NoErrorf(t, err, "go version failed: %s", out)
 
-	m := regexp.MustCompile(`go(\d+)\.(\d+)`).FindStringSubmatch(string(out))
-	require.NotNil(t, m, "cannot parse the output of go version: %s", out)
-	localMajor, _ := strconv.Atoi(m[1])
-	localMinor, _ := strconv.Atoi(m[2])
+	var workflow struct {
+		Jobs map[string]struct {
+			Name  string `yaml:"name"`
+			Steps []struct {
+				Name string            `yaml:"name"`
+				Uses string            `yaml:"uses"`
+				With map[string]string `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	path := filepath.Join(".github", "workflows", "on_pr.yaml")
+	require.NoError(t, yaml.Unmarshal([]byte(readFile(t, path)), &workflow),
+		"cannot parse %s", path)
 
-	goMajor, goMinor := goDirective(t, readFile(t, "go.mod"))
-	assert.Truef(t, atLeast(localMajor, localMinor, 0, goMajor, goMinor, 0),
-		"the local toolchain go%d.%d is older than the go directive %d.%d",
-		localMajor, localMinor, goMajor, goMinor)
+	job, ok := workflow.Jobs["build_push"]
+	require.Truef(t, ok, "%s has no build_push job", path)
+
+	var built bool
+	for _, step := range job.Steps {
+		if !strings.Contains(step.Uses, "build-push") {
+			continue
+		}
+		built = true
+		assert.Equal(t, "admiral", step.With["name"],
+			"the build_push job must build the admiral image")
+		assert.Contains(t, step.With["push"], "github.event_name != 'pull_request'",
+			"the build_push job must not push an image from a pull request")
+	}
+	require.Truef(t, built, "the build_push job of %s runs no build-push step", path)
+
+	// The image build is the only check on a pull request, and it runs make.
+	assert.Contains(t, readFile(t, "Dockerfile"), "RUN make",
+		"the image build must run make, which builds and tests the module")
+
+	// The module that the build_push job compiles must hold the patched oauth2
+	// version. This is the acceptance criterion of SEC-31.
+	requireModuleIsPatched(t, "the module that build_push compiles",
+		effectiveModuleVersion(t, "golang.org/x/oauth2"))
 }
 
 // Test_ModuleGraphIsTidy checks that 'go mod tidy' makes no further change.

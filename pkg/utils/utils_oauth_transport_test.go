@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
 )
 
 // The tests below exercise the client-go paths that link golang.org/x/oauth2.
@@ -52,10 +53,10 @@ func Test_TransportSendsBearerTokenFromFile(t *testing.T) {
 		"the oauth2 transport must add the bearer token from the file")
 }
 
-// Test_TransportRereadsRotatedTokenFile checks that the transport picks up a new
-// token after a rotation. The oauth2 token source caches a token until it
-// expires, so a regression in the cache logic would keep the stale value.
-func Test_TransportRereadsRotatedTokenFile(t *testing.T) {
+// Test_TransportUsesTheCachedTokenInsideTheCacheWindow checks the oauth2 token
+// cache. client-go reads the token file with a period of 1 minute and a leeway
+// of 10 seconds, so 2 requests in the same test share one read.
+func Test_TransportUsesTheCachedTokenInsideTheCacheWindow(t *testing.T) {
 	dir := t.TempDir()
 	tokenPath := filepath.Join(dir, "token")
 	require.NoError(t, os.WriteFile(tokenPath, []byte("first-token"), 0o600))
@@ -77,6 +78,7 @@ func Test_TransportRereadsRotatedTokenFile(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 
+	// The file changes, but the cache still holds the first token.
 	require.NoError(t, os.WriteFile(tokenPath, []byte("second-token"), 0o600))
 
 	resp, err = client.Get(server.URL)
@@ -85,11 +87,45 @@ func Test_TransportRereadsRotatedTokenFile(t *testing.T) {
 
 	require.Len(t, seen, 2)
 	assert.Equal(t, "Bearer first-token", seen[0])
-	// client-go caches the token for 1 minute, so the second call may reuse it.
-	// Either the cached first token or the rotated token is correct. An empty
-	// or malformed header is not.
-	assert.Containsf(t, []string{"Bearer first-token", "Bearer second-token"}, seen[1],
-		"the second request carried an unexpected header %q", seen[1])
+	assert.Equal(t, "Bearer first-token", seen[1],
+		"the cached token must serve a second request inside the cache window")
+}
+
+// Test_TransportReadsTheRotatedTokenFile checks that the transport reads the
+// token file again after a rotation. A new client holds an empty cache, so the
+// test asserts the rotated value without a wait for the cache window.
+func Test_TransportReadsTheRotatedTokenFile(t *testing.T) {
+	dir := t.TempDir()
+	tokenPath := filepath.Join(dir, "token")
+	require.NoError(t, os.WriteFile(tokenPath, []byte("first-token"), 0o600))
+
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	config := &rest.Config{Host: server.URL, BearerTokenFile: tokenPath}
+
+	first, err := rest.HTTPClientFor(config)
+	require.NoError(t, err)
+	resp, err := first.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.NoError(t, os.WriteFile(tokenPath, []byte("second-token"), 0o600))
+
+	second, err := rest.HTTPClientFor(config)
+	require.NoError(t, err)
+	resp, err = second.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.Len(t, seen, 2)
+	assert.Equal(t, "Bearer first-token", seen[0])
+	assert.Equal(t, "Bearer second-token", seen[1],
+		"the transport must read the rotated token file")
 }
 
 // Test_TransportOmitsAuthorizationWithoutAToken checks that the transport adds
@@ -136,16 +172,17 @@ func Test_TransportFailsOnAMissingTokenFile(t *testing.T) {
 	assert.Zero(t, calls, "the client must send no request without a token")
 }
 
-// Test_TransportFailsOnAnEmptyTokenFile checks that an empty token file is an
-// error. Without this check the transport could send the header "Bearer ",
-// which an API server may accept as an anonymous request.
+// Test_TransportFailsOnAnEmptyTokenFile checks that an empty token file fails
+// while client-go builds the client. The failure must be early, because the
+// round tripper sends the header "Bearer " when the token is empty, and an API
+// server can treat that request as anonymous.
 func Test_TransportFailsOnAnEmptyTokenFile(t *testing.T) {
 	tokenPath := filepath.Join(t.TempDir(), "token")
 	require.NoError(t, os.WriteFile(tokenPath, []byte(""), 0o600))
 
-	var seen []string
+	var calls int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen = append(seen, r.Header.Get("Authorization"))
+		calls++
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -154,24 +191,35 @@ func Test_TransportFailsOnAnEmptyTokenFile(t *testing.T) {
 		Host:            server.URL,
 		BearerTokenFile: tokenPath,
 	})
+	require.Error(t, err, "an empty token file must fail while the client is built")
+	assert.Contains(t, err.Error(), "read empty token from file")
+	assert.Nil(t, client, "a failed build must return no client")
+	assert.Zero(t, calls, "the client must send no request without a token")
+}
 
-	if err != nil {
-		// client-go rejects the empty file, which is the safe result.
-		assert.Nil(t, client)
-		return
-	}
+// Test_BearerRoundTripperSendsAnEmptyCredential documents the hazard that
+// Test_TransportFailsOnAnEmptyTokenFile guards. The round tripper adds the
+// header "Bearer " when the token is empty, so an empty token must never reach
+// it through a rest.Config.
+func Test_BearerRoundTripperSendsAnEmptyCredential(t *testing.T) {
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 
-	resp, reqErr := client.Get(server.URL)
-	if reqErr == nil {
-		resp.Body.Close()
+	client := &http.Client{
+		Transport: transport.NewBearerAuthRoundTripper("", http.DefaultTransport),
 	}
-	// If the request succeeds, the transport must not send an empty credential.
-	for _, h := range seen {
-		assert.NotEqual(t, "Bearer ", h,
-			"the transport sent an empty bearer token, which weakens authentication")
-		assert.NotEqual(t, "Bearer", h,
-			"the transport sent an empty bearer token, which weakens authentication")
-	}
+	resp, err := client.Get(server.URL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// The round tripper sets the value "Bearer " with a trailing space, and
+	// net/http trims that space, so the server reads "Bearer" with no credential.
+	assert.Equal(t, "Bearer", got,
+		"an empty bearer token gives an empty credential, which weakens authentication")
 }
 
 // Test_TransportRejectsConflictingCredentials checks that client-go still
