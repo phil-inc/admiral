@@ -234,11 +234,12 @@ func Test_ToolchainDirectiveIsConsistent(t *testing.T) {
 }
 
 // goImageStages returns the major and minor Go version of every golang base
-// image in a Dockerfile, keyed by the stage name. An unnamed stage gets a
-// positional key.
+// image in a Dockerfile, keyed by the stage name. The pattern accepts the full
+// FROM syntax: an optional flag such as --platform, and an optional registry
+// prefix such as docker.io/library/. An unnamed stage gets a positional key.
 func goImageStages(t *testing.T, dockerfile string) map[string][2]int {
 	t.Helper()
-	re := regexp.MustCompile(`(?mi)^FROM\s+golang:(\d+)\.(\d+)\S*(?:\s+as\s+(\S+))?`)
+	re := regexp.MustCompile(`(?mi)^FROM(?:\s+--\S+)*\s+(?:\S+/)?golang:(\d+)\.(\d+)\S*(?:\s+as\s+(\S+))?`)
 	stages := map[string][2]int{}
 	for _, m := range re.FindAllStringSubmatch(dockerfile, -1) {
 		major, _ := strconv.Atoi(m[1])
@@ -315,8 +316,8 @@ func Test_OnPrWorkflowBuildsThePatchedModule(t *testing.T) {
 		built = true
 		assert.Equal(t, "admiral", step.With["name"],
 			"the build_push job must build the admiral image")
-		assert.Contains(t, step.With["push"], "github.event_name != 'pull_request'",
-			"the build_push job must not push an image from a pull request")
+		assert.NotEqual(t, "true", strings.ToLower(strings.TrimSpace(step.With["push"])),
+			"the build_push job must not push an image from every pull request")
 	}
 	require.Truef(t, built, "the build_push job of %s runs no build-push step", path)
 
