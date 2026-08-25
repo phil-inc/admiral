@@ -197,10 +197,10 @@ func Test_TransportFailsOnAnEmptyTokenFile(t *testing.T) {
 	assert.Zero(t, calls, "the client must send no request without a token")
 }
 
-// Test_BearerRoundTripperSendsAnEmptyCredential documents the hazard that
-// Test_TransportFailsOnAnEmptyTokenFile guards. The round tripper adds the
-// header "Bearer " when the token is empty, so an empty token must never reach
-// it through a rest.Config.
+// Test_BearerRoundTripperSendsAnEmptyCredential checks the header that the
+// client-go bearer round tripper adds when the token is empty. The round tripper
+// sends a bearer scheme with no credential, so admiral must never give it an
+// empty token.
 func Test_BearerRoundTripperSendsAnEmptyCredential(t *testing.T) {
 	var got string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
